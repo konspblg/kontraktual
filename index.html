@@ -38,20 +38,28 @@
   body{
     margin:0;
     font-family:'Geist','IBM Plex Sans',sans-serif;
-    background:var(--surface);
+    background:#DCE3EA;
     color:var(--ink);
     -webkit-font-smoothing:antialiased;
   }
 
-  .wrap{ max-width:1100px; margin:0 auto; padding:0 20px 60px; }
+  .wrap{ max-width:1100px; margin:0 auto; padding:0 20px; }
+
+  .paper{
+    max-width:1100px;
+    margin:28px auto 60px;
+    background:var(--white);
+    border-radius:18px;
+    box-shadow:0 1px 2px rgba(15,23,42,0.06), 0 24px 48px -20px rgba(15,23,42,0.28);
+    padding:36px 40px 44px;
+  }
 
   header.topbar{
-    background:var(--navy);
-    padding:20px 0;
-    margin-bottom:24px;
+    background:linear-gradient(135deg, var(--navy) 0%, #0F2A3D 100%);
+    padding:22px 0;
   }
   header.topbar .wrap{ padding-bottom:0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
-  header.topbar h1{ font-size:20px; font-weight:600; color:var(--white); margin:0; }
+  header.topbar h1{ font-size:20px; font-weight:600; color:var(--white); margin:0; letter-spacing:-0.01em; }
   header.topbar p{ font-size:12px; color:var(--teal-soft); margin:2px 0 0; }
   .pln-badge{ display:flex; align-items:center; gap:8px; }
   .pln-badge span{ background:var(--teal); color:var(--white); font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px; }
@@ -64,16 +72,19 @@
     border:1px solid var(--line);
     background:var(--white);
     color:var(--ink);
+    transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
   }
-  select:focus, input:focus, button:focus{ outline:2px solid var(--teal); outline-offset:1px; }
+  select:hover, input:hover{ border-color:var(--teal); }
+  select:focus, input:focus, button:focus{ outline:none; border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-soft); }
   button{ cursor:pointer; }
   button:hover{ background:var(--surface); }
 
   .section-title{ display:flex; align-items:center; gap:8px; font-size:15px; font-weight:600; color:var(--navy); margin:0 0 12px; }
   .section-title .dot{ width:8px; height:8px; border-radius:50%; background:var(--teal); flex-shrink:0; }
 
-  .card{ background:var(--white); border:1px solid var(--line-soft); border-radius:12px; padding:16px 20px; }
-  .card-soft{ background:var(--surface); border-radius:var(--radius); padding:14px 16px; }
+  .card{ background:var(--white); border:1px solid var(--line-soft); border-radius:12px; padding:16px 20px; transition:box-shadow .2s ease, transform .2s ease; }
+  .card-soft{ background:var(--surface); border-radius:var(--radius); padding:14px 16px; transition:box-shadow .2s ease, transform .2s ease; }
+  .card-soft:hover, .card:hover{ box-shadow:0 8px 20px -8px rgba(15,23,42,0.18); transform:translateY(-1px); }
 
   .grid-4{ display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:12px; }
   .grid-2{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:16px; }
@@ -96,7 +107,7 @@
   .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
 
   .overlay{
-    display:none;
+    display:flex;
     position:fixed; inset:0;
     background:rgba(15,23,42,0.55);
     z-index:100;
@@ -104,8 +115,11 @@
     justify-content:center;
     padding:40px 16px;
     overflow-y:auto;
+    opacity:0;
+    visibility:hidden;
+    transition:opacity .2s ease;
   }
-  .overlay.show{ display:flex; }
+  .overlay.show{ opacity:1; visibility:visible; }
   .overlay-card{
     background:var(--white);
     border-radius:14px;
@@ -113,16 +127,20 @@
     max-width:520px;
     width:100%;
     padding:20px 24px 24px;
+    transform:translateY(-12px) scale(.97);
+    transition:transform .25s cubic-bezier(.2,.8,.2,1);
   }
+  .overlay.show .overlay-card{ transform:translateY(0) scale(1); }
   .overlay-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
-  .overlay-close{ border:none; background:var(--surface); width:30px; height:30px; border-radius:50%; font-size:16px; line-height:1; flex-shrink:0; padding:0; }
+  .overlay-close{ border:none; background:var(--surface); width:30px; height:30px; border-radius:50%; font-size:16px; line-height:1; flex-shrink:0; padding:0; transition:background-color .15s ease, transform .15s ease; }
+  .overlay-close:hover{ background:var(--st-red-bg); color:var(--st-red-fg); transform:rotate(90deg); }
   .overlay-group-title{ font-size:11px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:.03em; margin:16px 0 6px; }
   .kv{ width:100%; font-size:12.5px; }
   .kv td{ padding:4px 0; border:none; }
   .kv td:first-child{ color:var(--ink-2); }
   .kv td:last-child{ text-align:right; font-weight:500; }
 
-  .list-item{ padding:10px 0; border-bottom:1px solid var(--line-soft); }
+  .list-item{ padding:10px 0; border-bottom:1px solid var(--line-soft); transition:background-color .15s ease; }
   .list-item:last-child{ border-bottom:none; }
   .list-item .top{ font-size:12px; color:var(--ink-2); margin-bottom:2px; }
   .list-item .mid{ font-size:13px; margin-bottom:4px; }
@@ -152,7 +170,7 @@
   </div>
 </header>
 
-<div class="wrap">
+<div class="paper">
 
   <div id="loadingState" class="state-msg">Memuat data dari Google Sheets...</div>
   <div id="errorState" class="state-msg error" style="display:none;"></div>
@@ -244,7 +262,7 @@
 /* ============== KONFIGURASI ============== */
 const SHEET_ID = '1OLvF-EFqSZZIwZRK4T3b8VyXLM53OW42GoCzbzasgjI';
 const GID = '799877147';
-const HEADER_ROWS = 3; // baris group header + bulan header + (baris kosong/nama kolom)
+const HEADER_ROWS = 3; // baris group header + bulan header + baris total, diberitahukan eksplisit ke gviz lewat parameter headers=3 di URL
 
 // Peta indeks kolom (0-based) sesuai struktur sheet MONITORING
 const IDX = {
@@ -284,7 +302,7 @@ function loadSheet(gid){
       script.remove();
     };
     const script = document.createElement('script');
-    script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${gid}&tqx=out:json;responseHandler:${cbName}`;
+    script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${gid}&headers=${HEADER_ROWS}&tqx=out:json;responseHandler:${cbName}`;
     script.onerror = () => reject(new Error('Gagal memuat data. Pastikan spreadsheet sudah dibagikan sebagai "Siapa saja yang memiliki link".'));
     document.body.appendChild(script);
     setTimeout(() => reject(new Error('Waktu tunggu habis saat memuat data dari Google Sheets.')), 15000);
@@ -335,13 +353,13 @@ function formatRpShort(num){
 
 /* ============== PARSE DATA ============== */
 function parseContracts(json){
-  const rows = json.table.rows.slice(HEADER_ROWS);
+  const rows = json.table.rows; // baris header sudah otomatis dibuang oleh gviz (parameter headers=3 di URL)
   const out = [];
   rows.forEach(row => {
     if(!row.c) return;
     const noKontrak = cellFmt(row, IDX.noKontrak).trim();
     const judul = cellFmt(row, IDX.judul).trim();
-    if(!noKontrak && !judul) return; // lewati baris kosong / separator
+    if(!noKontrak && !judul) return; // lewati baris kosong / baris total / separator
 
     const planFisik = [], actualFisik = [], planBayarPct = [], actualBayarPct = [], planBayarRp = [], actualBayarRp = [];
     for(let m = 0; m < 12; m++){
@@ -384,9 +402,9 @@ function renderStatus(tahun){
   filtered.forEach(k => { if(count[k.status] !== undefined) count[k.status]++; });
 
   document.getElementById('statusCards').innerHTML = `
-    <div class="card-soft">
-      <p class="kpi-label">Jumlah kontrak (N)</p>
-      <p class="kpi-value">${n}</p>
+    <div class="card-soft" style="background:var(--teal-soft);">
+      <p class="kpi-label" style="color:var(--teal-dark);">Jumlah kontrak (N)</p>
+      <p class="kpi-value" style="color:var(--teal-dark);">${n}</p>
     </div>
     <div class="card-soft" style="background:var(--st-green-bg);">
       <p class="kpi-label" style="color:var(--st-green-fg);">Selesai</p>
@@ -602,7 +620,9 @@ function populateFilters(){
     e.target.value = '';
   });
 
-  const picSet = [...new Set(CONTRACTS.map(k => k.pic).filter(Boolean))].sort();
+  const isPlaceholder = v => !v || v === '-' || v.toUpperCase() === 'N/A';
+
+  const picSet = [...new Set(CONTRACTS.map(k => k.pic).filter(v => !isPlaceholder(v)))].sort();
   const picSel = document.getElementById('picSel');
   picSet.forEach(p => {
     const opt = document.createElement('option');
@@ -616,7 +636,7 @@ function populateFilters(){
     }
   });
 
-  const penyediaSet = [...new Set(CONTRACTS.map(k => k.penyedia).filter(Boolean))].sort();
+  const penyediaSet = [...new Set(CONTRACTS.map(k => k.penyedia).filter(v => !isPlaceholder(v)))].sort();
   const penyediaSel = document.getElementById('penyediaSel');
   penyediaSet.forEach(p => {
     const opt = document.createElement('option');
