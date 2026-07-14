@@ -74,6 +74,8 @@
     color:var(--ink);
     transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
   }
+  select optgroup{ font-weight:700; color:var(--navy); font-style:normal; }
+  select option{ font-weight:400; color:var(--ink); }
   select:hover, input:hover{ border-color:var(--teal); }
   select:focus, input:focus, button:focus{ outline:none; border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-soft); }
   button{ cursor:pointer; }
@@ -320,22 +322,43 @@ function cellFmt(row, idx){
   if(c.v === null || c.v === undefined) return '';
   return String(c.v);
 }
+function parseNumericString(s){
+  if(typeof s !== 'string') return null;
+  // buang semua karakter selain digit, koma, titik, dan minus (misal "Rp", "%", spasi)
+  let cleaned = s.replace(/[^0-9,.\-]/g, '').trim();
+  if(cleaned === '' || cleaned === '-') return null;
+  // format Rp di sheet ini pakai koma sebagai pemisah ribuan dan titik sebagai desimal (gaya Inggris)
+  cleaned = cleaned.replace(/,/g, '');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
 function cellNum(row, idx){
   const c = row.c && row.c[idx];
-  if(!c || c.v === null || c.v === undefined || c.v === '') return null;
-  const n = typeof c.v === 'number' ? c.v : parseFloat(c.v);
-  return isNaN(n) ? null : n;
+  if(!c) return null;
+  if(typeof c.v === 'number') return c.v;
+  if(typeof c.v === 'string'){
+    const n = parseNumericString(c.v);
+    if(n !== null) return n;
+  }
+  if(typeof c.f === 'string'){
+    const n = parseNumericString(c.f);
+    if(n !== null) return n;
+  }
+  return null;
 }
 function cellPct(row, idx){
   const c = row.c && row.c[idx];
   if(!c) return null;
-  if(c.f && typeof c.f === 'string' && c.f.trim() !== ''){
-    const cleaned = c.f.replace('%','').replace(/\./g,'').replace(',', '.').trim();
-    const n = parseFloat(cleaned);
-    if(!isNaN(n)) return n;
-  }
   if(typeof c.v === 'number'){
     return c.v <= 1.5 ? c.v * 100 : c.v;
+  }
+  if(typeof c.v === 'string'){
+    const n = parseNumericString(c.v);
+    if(n !== null) return n;
+  }
+  if(typeof c.f === 'string'){
+    const n = parseNumericString(c.f);
+    if(n !== null) return n;
   }
   return null;
 }
@@ -607,14 +630,34 @@ function populateFilters(){
   renderBayarTable(nowMonth);
 
   const kontrakSel = document.getElementById('kontrakSel');
-  const sortedContracts = [...CONTRACTS].sort((a,b) => (b.tahun||'').localeCompare(a.tahun||''));
-  sortedContracts.forEach(k => {
-    const idx = CONTRACTS.indexOf(k);
-    const opt = document.createElement('option');
-    opt.value = idx;
-    opt.textContent = `${k.judul} (${k.tahun})`;
-    kontrakSel.appendChild(opt);
+  const tahunUrut = [...new Set(CONTRACTS.map(k => k.tahun).filter(Boolean))].sort().reverse();
+  tahunUrut.forEach(tahun => {
+    const group = document.createElement('optgroup');
+    group.label = tahun;
+    CONTRACTS
+      .map((k, idx) => ({ k, idx }))
+      .filter(({k}) => k.tahun === tahun)
+      .sort((a,b) => a.k.judul.localeCompare(b.k.judul))
+      .forEach(({k, idx}) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = k.judul;
+        group.appendChild(opt);
+      });
+    kontrakSel.appendChild(group);
   });
+  // kontrak tanpa tahun (jaga-jaga data tidak lengkap)
+  const tanpaTahun = CONTRACTS.map((k, idx) => ({k, idx})).filter(({k}) => !k.tahun);
+  if(tanpaTahun.length){
+    const group = document.createElement('optgroup');
+    group.label = 'Tanpa tahun';
+    tanpaTahun.forEach(({k, idx}) => {
+      const opt = document.createElement('option');
+      opt.value = idx; opt.textContent = k.judul;
+      group.appendChild(opt);
+    });
+    kontrakSel.appendChild(group);
+  }
   kontrakSel.addEventListener('change', e => {
     if(e.target.value !== '') openKontrakDetail(CONTRACTS[parseInt(e.target.value,10)]);
     e.target.value = '';
@@ -657,6 +700,10 @@ async function init(){
     const json = await loadSheet(GID);
     CONTRACTS = parseContracts(json);
     if(!CONTRACTS.length) throw new Error('Data ditemukan tapi kosong. Cek struktur kolom sheet MONITORING.');
+
+    console.info('[Dashboard] Jumlah kontrak terbaca:', CONTRACTS.length);
+    console.info('[Dashboard] Contoh kontrak pertama:', CONTRACTS[0]);
+    console.info('[Dashboard] Contoh planBayarRp bulan Jan-Des kontrak pertama:', CONTRACTS[0].planBayarRp);
 
     populateFilters();
     renderChartsAndKpi();
