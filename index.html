@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Monitoring Kontrak AI — UPT Probolinggo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.1.1/index.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --teal:#00A19A;
+    --teal-dark:#00736D;
+    --teal-soft:#E0F7F5;
+    --yellow:#FDB913;
+    --yellow-soft:#FFF8E1;
+    --navy:#1A3A52;
+    --ink:#0F172A;
+    --ink-2:#475569;
+    --ink-3:#94A3B8;
+    --surface:#F8FAFC;
+    --white:#FFFFFF;
+    --line:#CBD5E1;
+    --line-soft:#E2E8F0;
+    --st-gray-bg:#F1F5F9;    --st-gray-fg:#475569;
+    --st-blue-bg:#DBEAFE;    --st-blue-fg:#1E40AF;
+    --st-amber-bg:#FEF3C7;   --st-amber-fg:#92400E;
+    --st-teal-bg:#CCFBF1;    --st-teal-fg:#115E59;
+    --st-green-bg:#D1FAE5;   --st-green-fg:#065F46;
+    --st-red-bg:#FEE2E2;     --st-red-fg:#991B1B;
+    --radius:8px;
+    --shadow-lg:0 20px 40px -8px rgba(15,23,42,0.25), 0 8px 16px -8px rgba(15,23,42,0.15);
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    font-family:'Geist','IBM Plex Sans',sans-serif;
+    background:var(--surface);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{ max-width:1100px; margin:0 auto; padding:0 20px 60px; }
+
+  header.topbar{
+    background:var(--navy);
+    padding:20px 0;
+    margin-bottom:24px;
+  }
+  header.topbar .wrap{ padding-bottom:0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  header.topbar h1{ font-size:20px; font-weight:600; color:var(--white); margin:0; }
+  header.topbar p{ font-size:12px; color:var(--teal-soft); margin:2px 0 0; }
+  .pln-badge{ display:flex; align-items:center; gap:8px; }
+  .pln-badge span{ background:var(--teal); color:var(--white); font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px; }
+
+  select, input, button{
+    font-family:inherit;
+    font-size:13px;
+    padding:8px 10px;
+    border-radius:var(--radius);
+    border:1px solid var(--line);
+    background:var(--white);
+    color:var(--ink);
+  }
+  select:focus, input:focus, button:focus{ outline:2px solid var(--teal); outline-offset:1px; }
+  button{ cursor:pointer; }
+  button:hover{ background:var(--surface); }
+
+  .section-title{ display:flex; align-items:center; gap:8px; font-size:15px; font-weight:600; color:var(--navy); margin:0 0 12px; }
+  .section-title .dot{ width:8px; height:8px; border-radius:50%; background:var(--teal); flex-shrink:0; }
+
+  .card{ background:var(--white); border:1px solid var(--line-soft); border-radius:12px; padding:16px 20px; }
+  .card-soft{ background:var(--surface); border-radius:var(--radius); padding:14px 16px; }
+
+  .grid-4{ display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:12px; }
+  .grid-2{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:16px; }
+
+  .kpi-label{ font-size:11px; font-weight:600; color:var(--ink-3); text-transform:uppercase; letter-spacing:.03em; margin:0 0 6px; }
+  .kpi-value{ font-size:22px; font-weight:700; margin:0; color:var(--ink); }
+
+  .pill{ display:inline-block; font-size:11px; font-weight:600; padding:3px 10px; border-radius:999px; white-space:nowrap; }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  th{ text-align:left; padding:8px 8px; color:var(--ink-2); font-weight:600; border-bottom:2px solid var(--line); background:var(--surface); position:sticky; top:0; }
+  td{ padding:8px 8px; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  tr:hover td{ background:var(--teal-soft); }
+  .num{ text-align:right; white-space:nowrap; }
+  .scroll-table{ max-height:420px; overflow:auto; border:1px solid var(--line-soft); border-radius:var(--radius); }
+
+  .chart-wrap{ position:relative; width:100%; height:260px; }
+  .legend{ display:flex; gap:16px; font-size:12px; color:var(--ink-2); margin-top:6px; }
+  .legend span{ display:flex; align-items:center; gap:4px; }
+  .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+  .overlay{
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(15,23,42,0.55);
+    z-index:100;
+    align-items:flex-start;
+    justify-content:center;
+    padding:40px 16px;
+    overflow-y:auto;
+  }
+  .overlay.show{ display:flex; }
+  .overlay-card{
+    background:var(--white);
+    border-radius:14px;
+    box-shadow:var(--shadow-lg);
+    max-width:520px;
+    width:100%;
+    padding:20px 24px 24px;
+  }
+  .overlay-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .overlay-close{ border:none; background:var(--surface); width:30px; height:30px; border-radius:50%; font-size:16px; line-height:1; flex-shrink:0; padding:0; }
+  .overlay-group-title{ font-size:11px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:.03em; margin:16px 0 6px; }
+  .kv{ width:100%; font-size:12.5px; }
+  .kv td{ padding:4px 0; border:none; }
+  .kv td:first-child{ color:var(--ink-2); }
+  .kv td:last-child{ text-align:right; font-weight:500; }
+
+  .list-item{ padding:10px 0; border-bottom:1px solid var(--line-soft); }
+  .list-item:last-child{ border-bottom:none; }
+  .list-item .top{ font-size:12px; color:var(--ink-2); margin-bottom:2px; }
+  .list-item .mid{ font-size:13px; margin-bottom:4px; }
+  .list-item .bottom{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+
+  .state-msg{ text-align:center; padding:60px 20px; color:var(--ink-2); font-size:14px; }
+  .state-msg.error{ color:var(--st-red-fg); }
+
+  .filterbar{ display:flex; gap:8px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+  section{ margin-bottom:28px; }
+
+  @media (max-width:600px){
+    .kpi-value{ font-size:18px; }
+    header.topbar h1{ font-size:16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div>
+      <h1>Dashboard Monitoring Kontrak AI</h1>
+      <p>UPT Probolinggo · data langsung dari Google Sheets</p>
+    </div>
+    <div class="pln-badge"><span>⚡ PLN</span></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div id="loadingState" class="state-msg">Memuat data dari Google Sheets...</div>
+  <div id="errorState" class="state-msg error" style="display:none;"></div>
+
+  <div id="dashboardContent" style="display:none;">
+
+    <div class="filterbar">
+      <select id="tahunSel"></select>
+    </div>
+
+    <section>
+      <p class="section-title"><span class="dot"></span>Status kontrak</p>
+      <div id="statusCards" class="grid-4"></div>
+    </section>
+
+    <section>
+      <div class="card">
+        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Detail kontrak</p>
+        <select id="kontrakSel" style="width:100%;">
+          <option value="">Pilih judul kontrak...</option>
+        </select>
+        <p style="font-size:12px; color:var(--ink-3); margin:8px 0 0;">Pilih salah satu, kartu detail akan muncul.</p>
+      </div>
+    </section>
+
+    <section>
+      <p class="section-title"><span class="dot"></span>Rencana vs realisasi bayar bulan ini</p>
+      <div class="filterbar" style="margin-bottom:12px;">
+        <select id="bulanSel"></select>
+      </div>
+      <div class="scroll-table">
+        <table>
+          <thead>
+            <tr>
+              <th style="min-width:220px;">Judul kontrak</th>
+              <th style="min-width:160px;">Penyedia</th>
+              <th class="num">Rencana %</th>
+              <th class="num">Rencana Rp</th>
+              <th class="num">Realisasi %</th>
+              <th class="num">Realisasi Rp</th>
+            </tr>
+          </thead>
+          <tbody id="bayarTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <p class="section-title"><span class="dot"></span>Rencana vs realisasi bayar (tren bulanan)</p>
+      <div class="grid-4" style="margin-bottom:14px; grid-template-columns:repeat(auto-fit, minmax(180px,1fr));">
+        <div class="card-soft">
+          <p class="kpi-label">Rencana bayar tahunan</p>
+          <p class="kpi-value" id="kpiRencanaTahunan">–</p>
+        </div>
+        <div class="card-soft">
+          <p class="kpi-label">Realisasi sampai saat ini</p>
+          <p class="kpi-value" id="kpiRealisasiSaatIni">–</p>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="bayarChart" role="img" aria-label="Grafik batang rencana vs realisasi pembayaran Januari sampai Desember"></canvas></div>
+      <div class="legend"><span><i style="background:#2a78d6;"></i>Rencana</span><span><i style="background:#1baf7a;"></i>Realisasi</span></div>
+    </section>
+
+    <section>
+      <p class="section-title"><span class="dot"></span>Rencana vs realisasi progres fisik (tren bulanan)</p>
+      <div class="chart-wrap"><canvas id="fisikChart" role="img" aria-label="Grafik garis rencana vs realisasi progres fisik Januari sampai Desember, dalam persen"></canvas></div>
+      <div class="legend"><span><i style="background:#2a78d6;"></i>Rencana</span><span><i style="background:#1baf7a;"></i>Realisasi</span></div>
+    </section>
+
+    <section class="grid-2">
+      <div class="card">
+        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status PIC</p>
+        <select id="picSel" style="width:100%;"><option value="">Pilih PIC...</option></select>
+      </div>
+      <div class="card">
+        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status penyedia</p>
+        <select id="penyediaSel" style="width:100%;"><option value="">Pilih penyedia...</option></select>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div id="overlay" class="overlay">
+  <div class="overlay-card" id="overlayCard"></div>
+</div>
+
+<script>
+/* ============== KONFIGURASI ============== */
+const SHEET_ID = '1OLvF-EFqSZZIwZRK4T3b8VyXLM53OW42GoCzbzasgjI';
+const GID = '799877147';
+const HEADER_ROWS = 3; // baris group header + bulan header + (baris kosong/nama kolom)
+
+// Peta indeks kolom (0-based) sesuai struktur sheet MONITORING
+const IDX = {
+  unit:0, unitPelaksana:1, noKontrak:2, noPrk:3, tahun:4, judul:5, nilai:6,
+  tglAwal:7, efektif:8, akhirKontrak:9, amandemenTerakhir:10, nilaiAmd:11, akhirAmd:12,
+  status:13, bastI:14, durasiPemeliharaan:15, akhirPemeliharaan:16, bastII:17, bapBastII:18,
+  bankGaransi:19, akhirJampel:20, statusJampel:21, nilaiJampel:22, penyedia:23, keterangan:24,
+  planFisik:25, actualFisik:37, planBayarPct:49, actualBayarPct:61,
+  planBayarRp:73, actualBayarRp:85, pic:97
+};
+const BULAN_LABEL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const BULAN_SINGKAT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+const STATUS_COLOR = {
+  'Selesai': ['var(--st-green-bg)','var(--st-green-fg)'],
+  'Masa Pemeliharaan': ['var(--st-amber-bg)','var(--st-amber-fg)'],
+  'Konstruksi': ['var(--st-blue-bg)','var(--st-blue-fg)'],
+  'SELESAI KONTRAK': ['var(--st-green-bg)','var(--st-green-fg)'],
+  'EXPIRED': ['var(--st-red-bg)','var(--st-red-fg)'],
+  'AKTIF': ['var(--st-teal-bg)','var(--st-teal-fg)']
+};
+function statusPill(text){
+  const key = (text||'').toString().trim();
+  const c = STATUS_COLOR[key] || ['var(--st-gray-bg)','var(--st-gray-fg)'];
+  return `<span class="pill" style="background:${c[0]}; color:${c[1]};">${key || '–'}</span>`;
+}
+
+let CONTRACTS = [];
+
+/* ============== FETCH VIA GVIZ (JSONP) ============== */
+function loadSheet(gid){
+  return new Promise((resolve, reject) => {
+    const cbName = 'gvizCb_' + Math.random().toString(36).slice(2);
+    window[cbName] = (json) => {
+      resolve(json);
+      delete window[cbName];
+      script.remove();
+    };
+    const script = document.createElement('script');
+    script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${gid}&tqx=out:json;responseHandler:${cbName}`;
+    script.onerror = () => reject(new Error('Gagal memuat data. Pastikan spreadsheet sudah dibagikan sebagai "Siapa saja yang memiliki link".'));
+    document.body.appendChild(script);
+    setTimeout(() => reject(new Error('Waktu tunggu habis saat memuat data dari Google Sheets.')), 15000);
+  });
+}
+
+function cellRaw(row, idx){
+  const c = row.c && row.c[idx];
+  return c ? c.v : null;
+}
+function cellFmt(row, idx){
+  const c = row.c && row.c[idx];
+  if(!c) return '';
+  if(c.f !== undefined && c.f !== null && c.f !== '') return c.f;
+  if(c.v === null || c.v === undefined) return '';
+  return String(c.v);
+}
+function cellNum(row, idx){
+  const c = row.c && row.c[idx];
+  if(!c || c.v === null || c.v === undefined || c.v === '') return null;
+  const n = typeof c.v === 'number' ? c.v : parseFloat(c.v);
+  return isNaN(n) ? null : n;
+}
+function cellPct(row, idx){
+  const c = row.c && row.c[idx];
+  if(!c) return null;
+  if(c.f && typeof c.f === 'string' && c.f.trim() !== ''){
+    const cleaned = c.f.replace('%','').replace(/\./g,'').replace(',', '.').trim();
+    const n = parseFloat(cleaned);
+    if(!isNaN(n)) return n;
+  }
+  if(typeof c.v === 'number'){
+    return c.v <= 1.5 ? c.v * 100 : c.v;
+  }
+  return null;
+}
+
+function formatRp(num){
+  if(num === null || num === undefined || isNaN(num)) return '–';
+  return 'Rp' + Math.round(num).toLocaleString('id-ID');
+}
+function formatRpShort(num){
+  if(num === null || num === undefined || isNaN(num)) return '–';
+  if(Math.abs(num) >= 1e9) return 'Rp' + (num/1e9).toFixed(1).replace('.',',') + ' M';
+  if(Math.abs(num) >= 1e6) return 'Rp' + (num/1e6).toFixed(1).replace('.',',') + ' Jt';
+  return formatRp(num);
+}
+
+/* ============== PARSE DATA ============== */
+function parseContracts(json){
+  const rows = json.table.rows.slice(HEADER_ROWS);
+  const out = [];
+  rows.forEach(row => {
+    if(!row.c) return;
+    const noKontrak = cellFmt(row, IDX.noKontrak).trim();
+    const judul = cellFmt(row, IDX.judul).trim();
+    if(!noKontrak && !judul) return; // lewati baris kosong / separator
+
+    const planFisik = [], actualFisik = [], planBayarPct = [], actualBayarPct = [], planBayarRp = [], actualBayarRp = [];
+    for(let m = 0; m < 12; m++){
+      planFisik.push(cellPct(row, IDX.planFisik + m));
+      actualFisik.push(cellPct(row, IDX.actualFisik + m));
+      planBayarPct.push(cellPct(row, IDX.planBayarPct + m));
+      actualBayarPct.push(cellPct(row, IDX.actualBayarPct + m));
+      planBayarRp.push(cellNum(row, IDX.planBayarRp + m));
+      actualBayarRp.push(cellNum(row, IDX.actualBayarRp + m));
+    }
+
+    out.push({
+      unit: cellFmt(row, IDX.unit),
+      unitPelaksana: cellFmt(row, IDX.unitPelaksana),
+      noKontrak, noPrk: cellFmt(row, IDX.noPrk),
+      tahun: cellFmt(row, IDX.tahun).trim(),
+      judul,
+      nilai: cellFmt(row, IDX.nilai),
+      tglAwal: cellFmt(row, IDX.tglAwal), efektif: cellFmt(row, IDX.efektif), akhirKontrak: cellFmt(row, IDX.akhirKontrak),
+      amandemenTerakhir: cellFmt(row, IDX.amandemenTerakhir), nilaiAmd: cellFmt(row, IDX.nilaiAmd), akhirAmd: cellFmt(row, IDX.akhirAmd),
+      status: cellFmt(row, IDX.status).trim(),
+      bastI: cellFmt(row, IDX.bastI), durasiPemeliharaan: cellFmt(row, IDX.durasiPemeliharaan), akhirPemeliharaan: cellFmt(row, IDX.akhirPemeliharaan),
+      bastII: cellFmt(row, IDX.bastII), bapBastII: cellFmt(row, IDX.bapBastII),
+      bankGaransi: cellFmt(row, IDX.bankGaransi), akhirJampel: cellFmt(row, IDX.akhirJampel),
+      statusJampel: cellFmt(row, IDX.statusJampel).trim(), nilaiJampel: cellFmt(row, IDX.nilaiJampel),
+      penyedia: cellFmt(row, IDX.penyedia).trim(),
+      keterangan: cellFmt(row, IDX.keterangan),
+      pic: cellFmt(row, IDX.pic).trim(),
+      planFisik, actualFisik, planBayarPct, actualBayarPct, planBayarRp, actualBayarRp
+    });
+  });
+  return out;
+}
+
+/* ============== RENDER: STATUS KONTRAK ============== */
+function renderStatus(tahun){
+  const filtered = tahun === '__ALL__' ? CONTRACTS : CONTRACTS.filter(k => k.tahun === tahun);
+  const n = filtered.length;
+  const count = { 'Selesai':0, 'Masa Pemeliharaan':0, 'Konstruksi':0 };
+  filtered.forEach(k => { if(count[k.status] !== undefined) count[k.status]++; });
+
+  document.getElementById('statusCards').innerHTML = `
+    <div class="card-soft">
+      <p class="kpi-label">Jumlah kontrak (N)</p>
+      <p class="kpi-value">${n}</p>
+    </div>
+    <div class="card-soft" style="background:var(--st-green-bg);">
+      <p class="kpi-label" style="color:var(--st-green-fg);">Selesai</p>
+      <p class="kpi-value" style="color:var(--st-green-fg);">${count['Selesai']}</p>
+    </div>
+    <div class="card-soft" style="background:var(--st-amber-bg);">
+      <p class="kpi-label" style="color:var(--st-amber-fg);">Masa pemeliharaan</p>
+      <p class="kpi-value" style="color:var(--st-amber-fg);">${count['Masa Pemeliharaan']}</p>
+    </div>
+    <div class="card-soft" style="background:var(--st-blue-bg);">
+      <p class="kpi-label" style="color:var(--st-blue-fg);">Konstruksi</p>
+      <p class="kpi-value" style="color:var(--st-blue-fg);">${count['Konstruksi']}</p>
+    </div>`;
+}
+
+/* ============== RENDER: DETAIL KONTRAK (overlay) ============== */
+function openOverlay(html){
+  document.getElementById('overlayCard').innerHTML = html;
+  document.getElementById('overlay').classList.add('show');
+}
+function closeOverlay(){
+  document.getElementById('overlay').classList.remove('show');
+}
+document.getElementById('overlay').addEventListener('click', e => {
+  if(e.target.id === 'overlay') closeOverlay();
+});
+
+function openKontrakDetail(k){
+  const html = `
+    <div class="overlay-head">
+      <div>
+        <p style="font-size:15px; font-weight:600; margin:0 0 4px;">${k.judul}</p>
+        <p style="font-size:12px; color:var(--ink-2); margin:0;">${k.noKontrak}</p>
+      </div>
+      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
+    </div>
+    ${statusPill(k.status)}
+    <p class="overlay-group-title">Identitas</p>
+    <table class="kv">
+      <tr><td>No PRK</td><td>${k.noPrk || '–'}</td></tr>
+      <tr><td>Tahun</td><td>${k.tahun || '–'}</td></tr>
+      <tr><td>Nilai kontrak</td><td>${k.nilai || '–'}</td></tr>
+      <tr><td>Penyedia</td><td>${k.penyedia || '–'}</td></tr>
+    </table>
+    <p class="overlay-group-title">Tanggal dan amandemen</p>
+    <table class="kv">
+      <tr><td>Tgl awal kontrak</td><td>${k.tglAwal || '–'}</td></tr>
+      <tr><td>Efektif kontrak</td><td>${k.efektif || '–'}</td></tr>
+      <tr><td>Akhir kontrak</td><td>${k.akhirKontrak || '–'}</td></tr>
+      <tr><td>Amandemen terakhir</td><td>${k.amandemenTerakhir || '–'}</td></tr>
+      <tr><td>Nilai update amd.</td><td>${k.nilaiAmd || '–'}</td></tr>
+      <tr><td>Akhir kontrak amd.</td><td>${k.akhirAmd || '–'}</td></tr>
+    </table>
+    <p class="overlay-group-title">BAST dan masa pemeliharaan</p>
+    <table class="kv">
+      <tr><td>Tgl BAST I</td><td>${k.bastI || '–'}</td></tr>
+      <tr><td>Durasi pemeliharaan</td><td>${k.durasiPemeliharaan || '–'}</td></tr>
+      <tr><td>Akhir masa pemeliharaan</td><td>${k.akhirPemeliharaan || '–'}</td></tr>
+      <tr><td>Tgl BAST II</td><td>${k.bastII || '–'}</td></tr>
+      <tr><td>Tgl BAP BAST II</td><td>${k.bapBastII || '–'}</td></tr>
+    </table>
+    <p class="overlay-group-title">Jaminan pelaksanaan</p>
+    <table class="kv">
+      <tr><td>Tgl bank garansi</td><td>${k.bankGaransi || '–'}</td></tr>
+      <tr><td>Akhir jaminan pelaksanaan</td><td>${k.akhirJampel || '–'}</td></tr>
+      <tr><td>Status jampel</td><td>${statusPill(k.statusJampel)}</td></tr>
+      <tr><td>Nilai jaminan pelaksanaan</td><td>${k.nilaiJampel || '–'}</td></tr>
+    </table>
+    ${k.keterangan ? `<p class="overlay-group-title">Keterangan</p><p style="font-size:12.5px; margin:0;">${k.keterangan}</p>` : ''}
+  `;
+  openOverlay(html);
+}
+
+/* ============== RENDER: STATUS PIC / PENYEDIA (overlay list) ============== */
+function openListOverlay(title, list){
+  const rows = list.length ? list.map(k => `
+    <div class="list-item">
+      <p class="top">${k.noKontrak}</p>
+      <p class="mid">${k.judul}</p>
+      <div class="bottom">
+        <span style="font-size:12px; color:var(--ink-2);">${k.nilai} · ${k.penyedia}</span>
+        ${statusPill(k.status)}
+      </div>
+    </div>`).join('') : `<p style="font-size:13px; color:var(--ink-3);">Tidak ada kontrak.</p>`;
+
+  openOverlay(`
+    <div class="overlay-head">
+      <p style="font-size:15px; font-weight:600; margin:0;">${title}</p>
+      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
+    </div>
+    ${rows}
+  `);
+}
+
+/* ============== RENDER: TABEL BAYAR BULAN INI ============== */
+function renderBayarTable(monthIdx){
+  const tbody = document.getElementById('bayarTableBody');
+  const rows = CONTRACTS
+    .map(k => ({
+      judul: k.judul, penyedia: k.penyedia,
+      rp: k.planBayarPct[monthIdx], rrp: k.planBayarRp[monthIdx],
+      ap: k.actualBayarPct[monthIdx], arp: k.actualBayarRp[monthIdx]
+    }))
+    .filter(r => (r.rrp !== null && r.rrp !== 0) || (r.arp !== null && r.arp !== 0));
+
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada data rencana/realisasi bayar untuk bulan ini.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.judul}</td>
+      <td>${r.penyedia}</td>
+      <td class="num">${r.rp !== null ? r.rp.toFixed(2) + '%' : '–'}</td>
+      <td class="num">${formatRp(r.rrp)}</td>
+      <td class="num">${r.ap !== null ? r.ap.toFixed(2) + '%' : '–'}</td>
+      <td class="num">${formatRp(r.arp)}</td>
+    </tr>`).join('');
+}
+
+/* ============== RENDER: CHARTS & KPI TAHUNAN ============== */
+let bayarChartInstance = null;
+let fisikChartInstance = null;
+
+function renderChartsAndKpi(){
+  const rencanaPerBulan = [], realisasiPerBulan = [];
+  let totalRencana = 0, totalRealisasi = 0;
+
+  for(let m = 0; m < 12; m++){
+    let rSum = 0, aSum = 0, aHasValue = false;
+    CONTRACTS.forEach(k => {
+      if(k.planBayarRp[m] !== null){ rSum += k.planBayarRp[m]; }
+      if(k.actualBayarRp[m] !== null){ aSum += k.actualBayarRp[m]; aHasValue = true; }
+    });
+    rencanaPerBulan.push(rSum / 1e9);
+    realisasiPerBulan.push(aHasValue ? aSum / 1e9 : null);
+    totalRencana += rSum;
+    if(aHasValue) totalRealisasi += aSum;
+  }
+
+  document.getElementById('kpiRencanaTahunan').textContent = formatRpShort(totalRencana);
+  document.getElementById('kpiRealisasiSaatIni').textContent = formatRpShort(totalRealisasi);
+
+  if(bayarChartInstance) bayarChartInstance.destroy();
+  bayarChartInstance = new Chart(document.getElementById('bayarChart'), {
+    type: 'bar',
+    data: {
+      labels: BULAN_SINGKAT,
+      datasets: [
+        { label:'Rencana', data: rencanaPerBulan, backgroundColor:'#2a78d6', borderRadius:4 },
+        { label:'Realisasi', data: realisasiPerBulan, backgroundColor:'#1baf7a', borderRadius:4 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ y:{ ticks:{ callback:v => 'Rp'+v.toFixed(1)+'M' } } }
+    }
+  });
+
+  const planFisikAvg = [], actualFisikAvg = [];
+  for(let m = 0; m < 12; m++){
+    const pv = CONTRACTS.map(k => k.planFisik[m]).filter(v => v !== null);
+    const av = CONTRACTS.map(k => k.actualFisik[m]).filter(v => v !== null);
+    planFisikAvg.push(pv.length ? pv.reduce((a,b)=>a+b,0)/pv.length : null);
+    actualFisikAvg.push(av.length ? av.reduce((a,b)=>a+b,0)/av.length : null);
+  }
+
+  if(fisikChartInstance) fisikChartInstance.destroy();
+  fisikChartInstance = new Chart(document.getElementById('fisikChart'), {
+    type:'line',
+    data:{
+      labels: BULAN_SINGKAT,
+      datasets:[
+        { label:'Rencana', data: planFisikAvg, borderColor:'#2a78d6', backgroundColor:'transparent', borderWidth:2, pointRadius:3, spanGaps:true },
+        { label:'Realisasi', data: actualFisikAvg, borderColor:'#1baf7a', backgroundColor:'transparent', borderWidth:2, pointRadius:3, borderDash:[5,3], spanGaps:false }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ y:{ min:0, max:100, ticks:{ callback:v => v+'%' } } }
+    }
+  });
+}
+
+/* ============== INISIALISASI FILTER ============== */
+function populateFilters(){
+  const tahunSet = [...new Set(CONTRACTS.map(k => k.tahun).filter(Boolean))].sort().reverse();
+  const tahunSel = document.getElementById('tahunSel');
+  tahunSel.innerHTML = tahunSet.map(t => `<option value="${t}">Tahun: ${t}</option>`).join('');
+  tahunSel.addEventListener('change', e => renderStatus(e.target.value));
+  if(tahunSet.length) renderStatus(tahunSet[0]);
+
+  const bulanSel = document.getElementById('bulanSel');
+  bulanSel.innerHTML = BULAN_LABEL.map((b,i) => `<option value="${i}">${b}</option>`).join('');
+  const nowMonth = new Date().getMonth();
+  bulanSel.value = nowMonth;
+  bulanSel.addEventListener('change', e => renderBayarTable(parseInt(e.target.value,10)));
+  renderBayarTable(nowMonth);
+
+  const kontrakSel = document.getElementById('kontrakSel');
+  const sortedContracts = [...CONTRACTS].sort((a,b) => (b.tahun||'').localeCompare(a.tahun||''));
+  sortedContracts.forEach(k => {
+    const idx = CONTRACTS.indexOf(k);
+    const opt = document.createElement('option');
+    opt.value = idx;
+    opt.textContent = `${k.judul} (${k.tahun})`;
+    kontrakSel.appendChild(opt);
+  });
+  kontrakSel.addEventListener('change', e => {
+    if(e.target.value !== '') openKontrakDetail(CONTRACTS[parseInt(e.target.value,10)]);
+    e.target.value = '';
+  });
+
+  const picSet = [...new Set(CONTRACTS.map(k => k.pic).filter(Boolean))].sort();
+  const picSel = document.getElementById('picSel');
+  picSet.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    picSel.appendChild(opt);
+  });
+  picSel.addEventListener('change', e => {
+    if(e.target.value !== ''){
+      openListOverlay('PIC: ' + e.target.value, CONTRACTS.filter(k => k.pic === e.target.value));
+      e.target.value = '';
+    }
+  });
+
+  const penyediaSet = [...new Set(CONTRACTS.map(k => k.penyedia).filter(Boolean))].sort();
+  const penyediaSel = document.getElementById('penyediaSel');
+  penyediaSet.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    penyediaSel.appendChild(opt);
+  });
+  penyediaSel.addEventListener('change', e => {
+    if(e.target.value !== ''){
+      openListOverlay(e.target.value, CONTRACTS.filter(k => k.penyedia === e.target.value));
+      e.target.value = '';
+    }
+  });
+}
+
+/* ============== MAIN ============== */
+async function init(){
+  try{
+    const json = await loadSheet(GID);
+    CONTRACTS = parseContracts(json);
+    if(!CONTRACTS.length) throw new Error('Data ditemukan tapi kosong. Cek struktur kolom sheet MONITORING.');
+
+    populateFilters();
+    renderChartsAndKpi();
+
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('dashboardContent').style.display = 'block';
+  }catch(err){
+    document.getElementById('loadingState').style.display = 'none';
+    const errEl = document.getElementById('errorState');
+    errEl.style.display = 'block';
+    errEl.textContent = err.message || 'Terjadi kesalahan saat memuat data.';
+  }
+}
+init();
+</script>
+</body>
+</html>
