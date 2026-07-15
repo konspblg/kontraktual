@@ -173,7 +173,6 @@
       <h1>Dashboard Monitoring Kontrak AI</h1>
       <p>UPT Probolinggo · data langsung dari Google Sheets</p>
     </div>
-    <div class="pln-badge"><span>⚡ PLN</span></div>
   </div>
 </header>
 
@@ -227,14 +226,14 @@
 
     <section>
       <p class="section-title"><span class="dot"></span>Rencana vs realisasi bayar (tren bulanan)</p>
-      <div class="grid-4" style="margin-bottom:14px; grid-template-columns:repeat(auto-fit, minmax(180px,1fr));">
+      <div class="grid-4" style="margin-bottom:14px; grid-template-columns:repeat(auto-fit, minmax(240px,1fr));">
         <div class="card-soft">
           <p class="kpi-label">Rencana bayar tahunan</p>
-          <p class="kpi-value" id="kpiRencanaTahunan">–</p>
+          <p class="kpi-value" id="kpiRencanaTahunan" style="font-size:19px; word-break:break-word;">–</p>
         </div>
         <div class="card-soft">
           <p class="kpi-label">Realisasi sampai saat ini</p>
-          <p class="kpi-value" id="kpiRealisasiSaatIni">–</p>
+          <p class="kpi-value" id="kpiRealisasiSaatIni" style="font-size:19px; word-break:break-word;">–</p>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="bayarChart" role="img" aria-label="Grafik batang rencana vs realisasi pembayaran Januari sampai Desember"></canvas></div>
@@ -242,7 +241,10 @@
     </section>
 
     <section>
-      <p class="section-title"><span class="dot"></span>Rencana vs realisasi progres fisik (Target Kinerja)</p>
+      <p class="section-title" style="justify-content:space-between;">
+        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi progres fisik (Target Kinerja)</span>
+        <button id="btnLihatTargetKinerja" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal);">Lihat Target Kinerja</button>
+      </p>
       <div class="chart-wrap"><canvas id="fisikChart" role="img" aria-label="Grafik garis rencana vs realisasi progres fisik Target Kinerja, Januari sampai Desember, dalam persen"></canvas></div>
       <div class="legend"><span><i style="background:#2a78d6;"></i>Rencana</span><span><i style="background:#1baf7a;"></i>Realisasi</span></div>
     </section>
@@ -298,6 +300,7 @@ function statusPill(text){
 }
 
 let CONTRACTS = [];
+let TARGET_KINERJA_CONTRACTS = [];
 
 /* ============== FETCH VIA GVIZ (JSONP) ============== */
 function loadSheet(gid){
@@ -598,8 +601,8 @@ function renderChartsAndKpi(){
     if(aHasValue) totalRealisasi += aSum;
   }
 
-  document.getElementById('kpiRencanaTahunan').textContent = formatRpShort(totalRencana);
-  document.getElementById('kpiRealisasiSaatIni').textContent = formatRpShort(totalRealisasi);
+  document.getElementById('kpiRencanaTahunan').textContent = formatRp(totalRencana);
+  document.getElementById('kpiRealisasiSaatIni').textContent = formatRp(totalRealisasi);
 
   if(bayarChartInstance) bayarChartInstance.destroy();
   bayarChartInstance = new Chart(document.getElementById('bayarChart'), {
@@ -618,13 +621,18 @@ function renderChartsAndKpi(){
     }
   });
 
-  const kontrakTargetKinerja = CONTRACTS.filter(k => (k.keterangan||'').toUpperCase().includes('TARGET KINERJA'));
-  console.info('[Dashboard] Jumlah kontrak dengan tag TARGET KINERJA di kolom Y:', kontrakTargetKinerja.length);
+  const normalizeText = s => (s || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  TARGET_KINERJA_CONTRACTS = CONTRACTS.filter(k => normalizeText(k.keterangan).includes('TARGET KINERJA'));
+  console.info('[Dashboard] Jumlah kontrak dengan tag TARGET KINERJA di kolom Y:', TARGET_KINERJA_CONTRACTS.length);
+  console.info('[Dashboard] Daftar kontrak Target Kinerja:', TARGET_KINERJA_CONTRACTS.map(k => ({
+    judul: k.judul, penyedia: k.penyedia,
+    planJun: k.planFisik[5], actualJun: k.actualFisik[5]
+  })));
 
   const planFisikAvg = [], actualFisikAvg = [];
   for(let m = 0; m < 12; m++){
-    const pv = kontrakTargetKinerja.map(k => k.planFisik[m]).filter(v => v !== null);
-    const av = kontrakTargetKinerja.map(k => k.actualFisik[m]).filter(v => v !== null);
+    const pv = TARGET_KINERJA_CONTRACTS.map(k => k.planFisik[m]).filter(v => v !== null);
+    const av = TARGET_KINERJA_CONTRACTS.map(k => k.actualFisik[m]).filter(v => v !== null);
     planFisikAvg.push(pv.length ? pv.reduce((a,b)=>a+b,0)/pv.length : null);
     actualFisikAvg.push(av.length ? av.reduce((a,b)=>a+b,0)/av.length : null);
   }
@@ -725,6 +733,39 @@ function populateFilters(){
       e.target.value = '';
     }
   });
+
+  document.getElementById('btnLihatTargetKinerja').addEventListener('click', () => {
+    openTargetKinerjaOverlay();
+  });
+}
+
+function openTargetKinerjaOverlay(){
+  const nowMonth = new Date().getMonth();
+  const rows = TARGET_KINERJA_CONTRACTS.map(k => ({
+    judul: k.judul, penyedia: k.penyedia,
+    plan: k.planFisik[nowMonth], actual: k.actualFisik[nowMonth]
+  }));
+
+  const body = rows.length ? rows.map(r => `
+    <div class="list-item">
+      <p class="mid" style="font-weight:500;">${r.judul}</p>
+      <div class="bottom">
+        <span style="font-size:12px; color:var(--ink-2);">${r.penyedia}</span>
+        <span style="font-size:12px; white-space:nowrap;">
+          Plan <b>${r.plan !== null ? r.plan.toFixed(2)+'%' : '–'}</b>
+          &nbsp;·&nbsp;
+          Actual <b>${r.actual !== null ? r.actual.toFixed(2)+'%' : '–'}</b>
+        </span>
+      </div>
+    </div>`).join('') : `<p style="font-size:13px; color:var(--ink-3);">Tidak ada kontrak bertanda TARGET KINERJA di kolom Keterangan.</p>`;
+
+  openOverlay(`
+    <div class="overlay-head">
+      <p style="font-size:15px; font-weight:600; margin:0;">Target Kinerja — ${BULAN_LABEL[nowMonth]}</p>
+      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
+    </div>
+    ${body}
+  `);
 }
 
 /* ============== MAIN ============== */
