@@ -97,11 +97,16 @@
   .pill{ display:inline-block; font-size:11px; font-weight:600; padding:3px 10px; border-radius:999px; white-space:nowrap; }
 
   table{ width:100%; border-collapse:collapse; font-size:12.5px; }
-  th{ text-align:left; padding:8px 8px; color:var(--ink-2); font-weight:600; border-bottom:2px solid var(--line); background:var(--surface); position:sticky; top:0; }
-  td{ padding:8px 8px; border-bottom:1px solid var(--line-soft); vertical-align:top; }
-  tr:hover td{ background:var(--teal-soft); }
+  th{ text-align:left; padding:10px 10px; color:var(--white); font-weight:600; background:var(--navy); position:sticky; top:0; z-index:1; }
+  td{ padding:9px 10px; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  tbody tr:nth-child(even) td{ background:var(--surface); }
+  tr:hover td{ background:var(--teal-soft) !important; }
   .num{ text-align:right; white-space:nowrap; }
   .scroll-table{ max-height:420px; overflow:auto; border:1px solid var(--line-soft); border-radius:var(--radius); }
+  tfoot td{ background:var(--navy); color:var(--white); font-weight:700; border-bottom:none; position:sticky; bottom:0; }
+  .status-pill{ display:inline-block; font-size:11.5px; font-weight:700; padding:5px 14px; border-radius:6px; box-shadow:0 1px 2px rgba(15,23,42,0.12); white-space:nowrap; }
+  .status-pill.paid{ background:#DCFCE7; color:#15803D; }
+  .status-pill.unpaid{ background:#FFEDD5; color:#C2410C; }
 
   .chart-wrap{ position:relative; width:100%; height:260px; }
   .legend{ display:flex; gap:16px; font-size:12px; color:var(--ink-2); margin-top:6px; }
@@ -210,12 +215,12 @@
               <th style="min-width:220px;">Judul kontrak</th>
               <th style="min-width:160px;">Penyedia</th>
               <th class="num">Rencana %</th>
-              <th class="num">Rencana Rp</th>
-              <th class="num">Realisasi %</th>
-              <th class="num">Realisasi Rp</th>
+              <th>Rencana Rp</th>
+              <th style="text-align:center;">Status Bayar</th>
             </tr>
           </thead>
           <tbody id="bayarTableBody"></tbody>
+          <tfoot id="bayarTableFoot"></tfoot>
         </table>
       </div>
     </section>
@@ -237,8 +242,8 @@
     </section>
 
     <section>
-      <p class="section-title"><span class="dot"></span>Rencana vs realisasi progres fisik (tren bulanan)</p>
-      <div class="chart-wrap"><canvas id="fisikChart" role="img" aria-label="Grafik garis rencana vs realisasi progres fisik Januari sampai Desember, dalam persen"></canvas></div>
+      <p class="section-title"><span class="dot"></span>Rencana vs realisasi progres fisik (Target Kinerja)</p>
+      <div class="chart-wrap"><canvas id="fisikChart" role="img" aria-label="Grafik garis rencana vs realisasi progres fisik Target Kinerja, Januari sampai Desember, dalam persen"></canvas></div>
       <div class="legend"><span><i style="background:#2a78d6;"></i>Rencana</span><span><i style="background:#1baf7a;"></i>Realisasi</span></div>
     </section>
 
@@ -401,6 +406,7 @@ function parseContracts(json){
       tahun: cellFmt(row, IDX.tahun).trim(),
       judul,
       nilai: cellFmt(row, IDX.nilai),
+      nilaiNum: cellNum(row, IDX.nilai),
       tglAwal: cellFmt(row, IDX.tglAwal), efektif: cellFmt(row, IDX.efektif), akhirKontrak: cellFmt(row, IDX.akhirKontrak),
       amandemenTerakhir: cellFmt(row, IDX.amandemenTerakhir), nilaiAmd: cellFmt(row, IDX.nilaiAmd), akhirAmd: cellFmt(row, IDX.akhirAmd),
       status: cellFmt(row, IDX.status).trim(),
@@ -423,6 +429,7 @@ function renderStatus(tahun){
   const n = filtered.length;
   const count = { 'Selesai':0, 'Masa Pemeliharaan':0, 'Konstruksi':0 };
   filtered.forEach(k => { if(count[k.status] !== undefined) count[k.status]++; });
+  const totalNilai = filtered.reduce((sum, k) => sum + (k.nilaiNum || 0), 0);
 
   document.getElementById('statusCards').innerHTML = `
     <div class="card-soft" style="background:var(--teal-soft);">
@@ -440,6 +447,10 @@ function renderStatus(tahun){
     <div class="card-soft" style="background:var(--st-blue-bg);">
       <p class="kpi-label" style="color:var(--st-blue-fg);">Konstruksi</p>
       <p class="kpi-value" style="color:var(--st-blue-fg);">${count['Konstruksi']}</p>
+    </div>
+    <div class="card-soft" style="background:var(--yellow-soft);">
+      <p class="kpi-label" style="color:#92400E;">Total nilai kontrak</p>
+      <p class="kpi-value" style="color:#92400E; font-size:18px;">${formatRpShort(totalNilai)}</p>
     </div>`;
 }
 
@@ -525,6 +536,7 @@ function openListOverlay(title, list){
 /* ============== RENDER: TABEL BAYAR BULAN INI ============== */
 function renderBayarTable(monthIdx){
   const tbody = document.getElementById('bayarTableBody');
+  const tfoot = document.getElementById('bayarTableFoot');
   const rows = CONTRACTS
     .map(k => ({
       judul: k.judul, penyedia: k.penyedia,
@@ -534,18 +546,36 @@ function renderBayarTable(monthIdx){
     .filter(r => (r.rrp !== null && r.rrp !== 0) || (r.arp !== null && r.arp !== 0));
 
   if(!rows.length){
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada data rencana/realisasi bayar untuk bulan ini.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada data rencana/realisasi bayar untuk bulan ini.</td></tr>`;
+    tfoot.innerHTML = '';
     return;
   }
-  tbody.innerHTML = rows.map(r => `
+  tbody.innerHTML = rows.map(r => {
+    const sudahBayar = (r.ap !== null && r.ap !== 0) || (r.arp !== null && r.arp !== 0);
+    const pill = sudahBayar
+      ? '<span class="status-pill paid">Terbayar</span>'
+      : '<span class="status-pill unpaid">Belum Terbayar</span>';
+    return `
     <tr>
       <td>${r.judul}</td>
       <td>${r.penyedia}</td>
       <td class="num">${r.rp !== null ? r.rp.toFixed(2) + '%' : '–'}</td>
-      <td class="num">${formatRp(r.rrp)}</td>
-      <td class="num">${r.ap !== null ? r.ap.toFixed(2) + '%' : '–'}</td>
-      <td class="num">${formatRp(r.arp)}</td>
-    </tr>`).join('');
+      <td>${formatRp(r.rrp)}</td>
+      <td style="text-align:center;">${pill}</td>
+    </tr>`;
+  }).join('');
+
+  const totalRencana = rows.reduce((sum, r) => sum + (r.rrp || 0), 0);
+  const totalRealisasi = rows.reduce((sum, r) => sum + (r.arp || 0), 0);
+  tfoot.innerHTML = `
+    <tr>
+      <td colspan="3" style="text-align:right;">TOTAL RENCANA &amp; REALISASI BAYAR</td>
+      <td>${formatRp(totalRencana)}</td>
+      <td style="text-align:center;">
+        <div style="font-size:10px; font-weight:400; opacity:.75; margin-bottom:2px;">Realisasi</div>
+        ${formatRp(totalRealisasi)}
+      </td>
+    </tr>`;
 }
 
 /* ============== RENDER: CHARTS & KPI TAHUNAN ============== */
@@ -588,10 +618,13 @@ function renderChartsAndKpi(){
     }
   });
 
+  const kontrakTargetKinerja = CONTRACTS.filter(k => (k.keterangan||'').toUpperCase().includes('TARGET KINERJA'));
+  console.info('[Dashboard] Jumlah kontrak dengan tag TARGET KINERJA di kolom Y:', kontrakTargetKinerja.length);
+
   const planFisikAvg = [], actualFisikAvg = [];
   for(let m = 0; m < 12; m++){
-    const pv = CONTRACTS.map(k => k.planFisik[m]).filter(v => v !== null);
-    const av = CONTRACTS.map(k => k.actualFisik[m]).filter(v => v !== null);
+    const pv = kontrakTargetKinerja.map(k => k.planFisik[m]).filter(v => v !== null);
+    const av = kontrakTargetKinerja.map(k => k.actualFisik[m]).filter(v => v !== null);
     planFisikAvg.push(pv.length ? pv.reduce((a,b)=>a+b,0)/pv.length : null);
     actualFisikAvg.push(av.length ? av.reduce((a,b)=>a+b,0)/av.length : null);
   }
