@@ -135,8 +135,9 @@
     width:100%;
     padding:20px 24px 24px;
     transform:translateY(-12px) scale(.97);
-    transition:transform .25s cubic-bezier(.2,.8,.2,1);
+    transition:transform .25s cubic-bezier(.2,.8,.2,1), max-width .2s ease;
   }
+  .overlay-card.wide{ max-width:920px; }
   .overlay.show .overlay-card{ transform:translateY(0) scale(1); }
   .overlay-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
   .overlay-close{ border:none; background:var(--surface); width:30px; height:30px; border-radius:50%; font-size:16px; line-height:1; flex-shrink:0; padding:0; transition:background-color .15s ease, transform .15s ease; }
@@ -458,8 +459,10 @@ function renderStatus(tahun){
 }
 
 /* ============== RENDER: DETAIL KONTRAK (overlay) ============== */
-function openOverlay(html){
-  document.getElementById('overlayCard').innerHTML = html;
+function openOverlay(html, wide){
+  const card = document.getElementById('overlayCard');
+  card.innerHTML = html;
+  card.classList.toggle('wide', !!wide);
   document.getElementById('overlay').classList.add('show');
 }
 function closeOverlay(){
@@ -746,26 +749,56 @@ function openTargetKinerjaOverlay(){
     plan: k.planFisik[nowMonth], actual: k.actualFisik[nowMonth]
   }));
 
-  const body = rows.length ? rows.map(r => `
-    <div class="list-item">
-      <p class="mid" style="font-weight:500;">${r.judul}</p>
-      <div class="bottom">
-        <span style="font-size:12px; color:var(--ink-2);">${r.penyedia}</span>
-        <span style="font-size:12px; white-space:nowrap;">
-          Plan <b>${r.plan !== null ? r.plan.toFixed(2)+'%' : '–'}</b>
-          &nbsp;·&nbsp;
-          Actual <b>${r.actual !== null ? r.actual.toFixed(2)+'%' : '–'}</b>
-        </span>
-      </div>
-    </div>`).join('') : `<p style="font-size:13px; color:var(--ink-3);">Tidak ada kontrak bertanda TARGET KINERJA di kolom Keterangan.</p>`;
+  const planVals = rows.map(r => r.plan).filter(v => v !== null);
+  const actualVals = rows.map(r => r.actual).filter(v => v !== null);
+  const avgPlan = planVals.length ? planVals.reduce((a,b)=>a+b,0)/planVals.length : null;
+  const avgActual = actualVals.length ? actualVals.reduce((a,b)=>a+b,0)/actualVals.length : null;
+
+  const bodyRows = rows.length ? rows.map(r => {
+    const diff = (r.plan !== null && r.actual !== null) ? (r.actual - r.plan) : null;
+    const diffColor = diff === null ? 'var(--ink-3)' : (diff >= 0 ? '#15803D' : '#C2410C');
+    const diffText = diff === null ? '–' : (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
+    return `
+    <tr>
+      <td style="min-width:260px;">${r.judul}</td>
+      <td style="min-width:180px;">${r.penyedia}</td>
+      <td class="num">${r.plan !== null ? r.plan.toFixed(2)+'%' : '–'}</td>
+      <td class="num">${r.actual !== null ? r.actual.toFixed(2)+'%' : '–'}</td>
+      <td class="num" style="color:${diffColor}; font-weight:600;">${diffText}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="5" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada kontrak bertanda TARGET KINERJA di kolom Keterangan.</td></tr>`;
 
   openOverlay(`
     <div class="overlay-head">
-      <p style="font-size:15px; font-weight:600; margin:0;">Target Kinerja — ${BULAN_LABEL[nowMonth]}</p>
+      <div>
+        <p style="font-size:16px; font-weight:600; margin:0 0 2px;">Target Kinerja — ${BULAN_LABEL[nowMonth]}</p>
+        <p style="font-size:12px; color:var(--ink-2); margin:0;">${rows.length} kontrak bertanda "TARGET KINERJA" di kolom Keterangan</p>
+      </div>
       <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
     </div>
-    ${body}
-  `);
+    <div class="scroll-table" style="max-height:60vh;">
+      <table>
+        <thead>
+          <tr>
+            <th>Judul kontrak</th>
+            <th>Penyedia</th>
+            <th class="num">Plan %</th>
+            <th class="num">Actual %</th>
+            <th class="num">Selisih</th>
+          </tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2" style="text-align:right;">RATA-RATA (dipakai di chart)</td>
+            <td class="num">${avgPlan !== null ? avgPlan.toFixed(2)+'%' : '–'}</td>
+            <td class="num">${avgActual !== null ? avgActual.toFixed(2)+'%' : '–'}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  `, true);
 }
 
 /* ============== MAIN ============== */
