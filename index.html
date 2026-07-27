@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.1.1/index.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root{
     --teal:#00A19A;
@@ -204,12 +205,17 @@
     </section>
 
     <section>
-      <p class="section-title"><span class="dot"></span>Rencana vs realisasi bayar bulan ini</p>
+      <p class="section-title" style="justify-content:space-between;">
+        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar bulan ini</span>
+        <button id="btnCopyBayarTable" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; gap:6px;">
+          <span id="copyBayarIcon">📋</span> Salin tabel
+        </button>
+      </p>
       <div class="filterbar" style="margin-bottom:12px;">
         <select id="bulanSel"></select>
       </div>
       <div class="scroll-table">
-        <table>
+        <table id="bayarTable">
           <thead>
             <tr>
               <th style="min-width:220px;">Judul kontrak</th>
@@ -590,16 +596,20 @@ let fisikChartInstance = null;
 
 function renderChartsAndKpi(){
   const rencanaPerBulan = [], realisasiPerBulan = [];
+  const jumlahKontrakRencana = [], jumlahKontrakRealisasi = [];
   let totalRencana = 0, totalRealisasi = 0;
 
   for(let m = 0; m < 12; m++){
     let rSum = 0, aSum = 0, aHasValue = false;
+    let rCount = 0, aCount = 0;
     CONTRACTS.forEach(k => {
-      if(k.planBayarRp[m] !== null){ rSum += k.planBayarRp[m]; }
-      if(k.actualBayarRp[m] !== null){ aSum += k.actualBayarRp[m]; aHasValue = true; }
+      if(k.planBayarRp[m] !== null && k.planBayarRp[m] !== 0){ rSum += k.planBayarRp[m]; rCount++; }
+      if(k.actualBayarRp[m] !== null && k.actualBayarRp[m] !== 0){ aSum += k.actualBayarRp[m]; aHasValue = true; aCount++; }
     });
     rencanaPerBulan.push(rSum / 1e9);
     realisasiPerBulan.push(aHasValue ? aSum / 1e9 : null);
+    jumlahKontrakRencana.push(rCount);
+    jumlahKontrakRealisasi.push(aHasValue ? aCount : null);
     totalRencana += rSum;
     if(aHasValue) totalRealisasi += aSum;
   }
@@ -610,15 +620,27 @@ function renderChartsAndKpi(){
   if(bayarChartInstance) bayarChartInstance.destroy();
   bayarChartInstance = new Chart(document.getElementById('bayarChart'), {
     type: 'bar',
+    plugins: [ChartDataLabels],
     data: {
       labels: BULAN_SINGKAT,
       datasets: [
-        { label:'Rencana', data: rencanaPerBulan, backgroundColor:'#2a78d6', borderRadius:4 },
-        { label:'Realisasi', data: realisasiPerBulan, backgroundColor:'#1baf7a', borderRadius:4 }
+        { label:'Rencana', data: rencanaPerBulan, backgroundColor:'#2a78d6', borderRadius:4,
+          datalabels: { anchor:'end', align:'top', color:'#2a78d6', font:{ weight:'700', size:11 },
+            formatter: (value, ctx) => {
+              const n = jumlahKontrakRencana[ctx.dataIndex];
+              return n ? n + ' kontrak' : '';
+            } } },
+        { label:'Realisasi', data: realisasiPerBulan, backgroundColor:'#1baf7a', borderRadius:4,
+          datalabels: { anchor:'end', align:'top', color:'#1baf7a', font:{ weight:'700', size:11 },
+            formatter: (value, ctx) => {
+              const n = jumlahKontrakRealisasi[ctx.dataIndex];
+              return n ? n + ' kontrak' : '';
+            } } }
       ]
     },
     options: {
       responsive:true, maintainAspectRatio:false,
+      layout: { padding: { top: 22 } },
       plugins:{ legend:{ display:false } },
       scales:{ y:{ ticks:{ callback:v => 'Rp'+v.toFixed(1)+'M' } } }
     }
@@ -740,6 +762,68 @@ function populateFilters(){
   document.getElementById('btnLihatTargetKinerja').addEventListener('click', () => {
     openTargetKinerjaOverlay();
   });
+
+  document.getElementById('btnCopyBayarTable').addEventListener('click', copyBayarTableToClipboard);
+}
+
+async function copyBayarTableToClipboard(){
+  const table = document.getElementById('bayarTable');
+  const btn = document.getElementById('btnCopyBayarTable');
+  const icon = document.getElementById('copyBayarIcon');
+
+  // Bungkus dengan styling inline supaya rapi saat ditempel ke Google Slides / Docs / Word
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = table.outerHTML;
+  const clonedTable = wrapper.querySelector('table');
+  clonedTable.style.borderCollapse = 'collapse';
+  clonedTable.style.fontFamily = 'Arial, sans-serif';
+  clonedTable.style.fontSize = '11pt';
+  clonedTable.querySelectorAll('th').forEach(th => {
+    th.style.background = '#1A3A52';
+    th.style.color = '#FFFFFF';
+    th.style.padding = '6px 8px';
+    th.style.border = '1px solid #CBD5E1';
+    th.style.textAlign = th.classList.contains('num') ? 'right' : 'left';
+  });
+  clonedTable.querySelectorAll('td').forEach(td => {
+    td.style.padding = '6px 8px';
+    td.style.border = '1px solid #CBD5E1';
+  });
+  clonedTable.querySelectorAll('.status-pill').forEach(pill => {
+    pill.style.display = 'inline-block';
+    pill.style.padding = '3px 10px';
+    pill.style.borderRadius = '6px';
+    pill.style.fontWeight = 'bold';
+    if(pill.classList.contains('paid')){ pill.style.background = '#DCFCE7'; pill.style.color = '#15803D'; }
+    else{ pill.style.background = '#FFEDD5'; pill.style.color = '#C2410C'; }
+  });
+
+  const htmlContent = wrapper.innerHTML;
+  const plainText = Array.from(table.querySelectorAll('tr')).map(tr =>
+    Array.from(tr.children).map(cell => cell.innerText.trim()).join('\t')
+  ).join('\n');
+
+  try{
+    if(navigator.clipboard && window.ClipboardItem){
+      const item = new ClipboardItem({
+        'text/html': new Blob([htmlContent], { type: 'text/html' }),
+        'text/plain': new Blob([plainText], { type: 'text/plain' })
+      });
+      await navigator.clipboard.write([item]);
+    }else{
+      await navigator.clipboard.writeText(plainText);
+    }
+    icon.textContent = '✅';
+    const label = btn.childNodes[btn.childNodes.length - 1];
+    if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Tersalin!';
+    setTimeout(() => {
+      icon.textContent = '📋';
+      if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Salin tabel';
+    }, 2000);
+  }catch(err){
+    alert('Gagal menyalin tabel. Coba lagi atau seleksi tabel secara manual (klik-drag lalu Ctrl+C).');
+    console.error('[Dashboard] Gagal copy tabel:', err);
+  }
 }
 
 function openTargetKinerjaOverlay(){
