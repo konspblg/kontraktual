@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.1.1/index.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{
     --teal:#00A19A;
@@ -266,14 +267,14 @@
     <section>
       <p class="section-title" style="justify-content:space-between;">
         <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar bulan ini</span>
-        <button id="btnCopyBayarTable" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; gap:6px;">
-          <span id="copyBayarIcon">📋</span> Salin tabel
+        <button id="btnScreenshotBayarTable" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; gap:6px;">
+          <span id="screenshotBayarIcon">📷</span> Screenshot tabel
         </button>
       </p>
       <div class="filterbar" style="margin-bottom:12px;">
         <select id="bulanSel"></select>
       </div>
-      <div class="scroll-table">
+      <div class="scroll-table" id="bayarTableCaptureArea">
         <table id="bayarTable">
           <thead>
             <tr>
@@ -292,19 +293,27 @@
     </section>
 
     <section>
-      <p class="section-title"><span class="dot"></span>Rencana vs realisasi bayar (tren bulanan)</p>
-      <div class="grid-4" style="margin-bottom:14px; grid-template-columns:repeat(auto-fit, minmax(240px,1fr));">
-        <div class="card-soft">
-          <p class="kpi-label">Rencana bayar tahunan</p>
-          <p class="kpi-value" id="kpiRencanaTahunan" style="font-size:19px; word-break:break-word;">–</p>
+      <p class="section-title" style="justify-content:space-between;">
+        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar (tren bulanan)</span>
+        <button id="btnScreenshotBayarChart" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; gap:6px;">
+          <span id="screenshotBayarChartIcon">📷</span> Screenshot
+        </button>
+      </p>
+      <div id="bayarChartCaptureArea" style="background:var(--white); padding:4px;">
+        <div class="grid-4" style="margin-bottom:14px; grid-template-columns:repeat(auto-fit, minmax(240px,1fr));">
+          <div class="card-soft">
+            <p class="kpi-label">Rencana bayar tahunan</p>
+            <p class="kpi-value" id="kpiRencanaTahunan" style="font-size:19px; word-break:break-word;">–</p>
+          </div>
+          <div class="card-soft">
+            <p class="kpi-label">Realisasi sampai saat ini</p>
+            <p class="kpi-value" id="kpiRealisasiSaatIni" style="font-size:19px; word-break:break-word;">–</p>
+            <p style="font-size:11px; color:var(--ink-2); margin:4px 0 0;" id="kpiRealisasiPct"></p>
+          </div>
         </div>
-        <div class="card-soft">
-          <p class="kpi-label">Realisasi sampai saat ini</p>
-          <p class="kpi-value" id="kpiRealisasiSaatIni" style="font-size:19px; word-break:break-word;">–</p>
-        </div>
+        <div class="chart-wrap"><canvas id="bayarChart" role="img" aria-label="Grafik batang rencana vs realisasi pembayaran Januari sampai Desember"></canvas></div>
+        <div class="legend"><span><i style="background:#2a78d6;"></i>Rencana</span><span><i style="background:#1baf7a;"></i>Realisasi</span></div>
       </div>
-      <div class="chart-wrap"><canvas id="bayarChart" role="img" aria-label="Grafik batang rencana vs realisasi pembayaran Januari sampai Desember"></canvas></div>
-      <div class="legend"><span><i style="background:#2a78d6;"></i>Rencana</span><span><i style="background:#1baf7a;"></i>Realisasi</span></div>
     </section>
 
     <section>
@@ -344,10 +353,11 @@ const HEADER_ROWS = 3; // baris group header + bulan header + baris total, diber
 const IDX = {
   unit:0, unitPelaksana:1, noKontrak:2, noPrk:3, tahun:4, judul:5, nilai:6,
   tglAwal:7, efektif:8, akhirKontrak:9, amandemenTerakhir:10, nilaiAmd:11, akhirAmd:12,
-  status:17, bastI:18, durasiPemeliharaan:19, akhirPemeliharaan:20, bastII:21, bapBastII:22,
-  bankGaransi:23, akhirJampel:24, statusJampel:25, nilaiJampel:26, penyedia:27, keterangan:28,
-  planFisik:29, actualFisik:41, planBayarPct:53, actualBayarPct:65,
-  planBayarRp:77, actualBayarRp:89, pic:101
+  telahTerbayarRp:13, telahTerbayarPct:14, belumTerbayarRp:15, belumTerbayarPct:16,
+  status:18, bastI:19, durasiPemeliharaan:20, akhirPemeliharaan:21, bastII:22, bapBastII:23,
+  bankGaransi:24, akhirJampel:25, statusJampel:26, nilaiJampel:27, penyedia:28, keterangan:29,
+  planFisik:31, actualFisik:43, planBayarPct:55, actualBayarPct:67,
+  planBayarRp:79, actualBayarRp:91, pic:103
 };
 const BULAN_LABEL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const BULAN_SINGKAT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
@@ -718,6 +728,13 @@ function renderChartsAndKpi(){
 
   document.getElementById('kpiRencanaTahunan').textContent = formatRp(totalRencana);
   document.getElementById('kpiRealisasiSaatIni').textContent = formatRp(totalRealisasi);
+  const pctEl = document.getElementById('kpiRealisasiPct');
+  if(totalRencana > 0){
+    const pct = (totalRealisasi / totalRencana) * 100;
+    pctEl.textContent = pct.toFixed(1) + '% dari rencana bayar tahunan';
+  }else{
+    pctEl.textContent = '';
+  }
 
   if(bayarChartInstance) bayarChartInstance.destroy();
   bayarChartInstance = new Chart(document.getElementById('bayarChart'), {
@@ -865,85 +882,50 @@ function populateFilters(){
     openTargetKinerjaOverlay();
   });
 
-  document.getElementById('btnCopyBayarTable').addEventListener('click', copyBayarTableToClipboard);
+  document.getElementById('btnScreenshotBayarTable').addEventListener('click', () => {
+    const bulanText = document.getElementById('bulanSel').selectedOptions[0].textContent.trim();
+    screenshotElement('bayarTableCaptureArea', `tabel-rencana-realisasi-bayar-${bulanText}`,
+      'btnScreenshotBayarTable', 'screenshotBayarIcon', 'Screenshot tabel');
+  });
+
+  document.getElementById('btnScreenshotBayarChart').addEventListener('click', () => {
+    screenshotElement('bayarChartCaptureArea', 'tren-rencana-realisasi-bayar-bulanan',
+      'btnScreenshotBayarChart', 'screenshotBayarChartIcon', 'Screenshot');
+  });
 }
 
-async function copyBayarTableToClipboard(){
-  const table = document.getElementById('bayarTable');
-  const btn = document.getElementById('btnCopyBayarTable');
-  const icon = document.getElementById('copyBayarIcon');
-
-  // Bungkus dengan styling inline supaya rapi saat ditempel ke Google Slides / Docs / Word.
-  // Catatan: Google Slides sering tidak mempertahankan warna latar sel tabel saat paste,
-  // jadi header/footer di sini pakai teks navy tebal + border tegas (tetap terbaca
-  // baik latar ikut ter-paste maupun tidak), bukan mengandalkan latar gelap + teks putih.
-  const wrapper = document.createElement('div');
-  wrapper.style.backgroundColor = '#FFFFFF';
-  wrapper.style.fontFamily = 'Calibri, sans-serif';
-  wrapper.innerHTML = table.outerHTML;
-  const clonedTable = wrapper.querySelector('table');
-  clonedTable.removeAttribute('id');
-  clonedTable.style.borderCollapse = 'collapse';
-  clonedTable.style.fontFamily = 'Calibri, sans-serif';
-  clonedTable.style.fontSize = '11pt';
-  clonedTable.style.backgroundColor = '#FFFFFF';
-  clonedTable.querySelectorAll('th').forEach(th => {
-    th.style.backgroundColor = '#EEF2F7';
-    th.style.color = '#1A3A52';
-    th.style.fontWeight = 'bold';
-    th.style.padding = '6px 8px';
-    th.style.border = '1px solid #CBD5E1';
-    th.style.borderBottom = '2px solid #1A3A52';
-    th.style.textAlign = th.classList.contains('num') ? 'right' : 'left';
-  });
-  clonedTable.querySelectorAll('tbody td').forEach(td => {
-    td.style.padding = '6px 8px';
-    td.style.border = '1px solid #CBD5E1';
-    td.style.backgroundColor = '#FFFFFF';
-    td.style.color = '#0F172A';
-  });
-  clonedTable.querySelectorAll('tfoot td').forEach(td => {
-    td.style.padding = '6px 8px';
-    td.style.border = '1px solid #CBD5E1';
-    td.style.borderTop = '2px solid #1A3A52';
-    td.style.backgroundColor = '#EEF2F7';
-    td.style.color = '#1A3A52';
-    td.style.fontWeight = 'bold';
-  });
-  clonedTable.querySelectorAll('.status-pill').forEach(pill => {
-    pill.style.display = 'inline-block';
-    pill.style.padding = '3px 10px';
-    pill.style.borderRadius = '6px';
-    pill.style.fontWeight = 'bold';
-    if(pill.classList.contains('paid')){ pill.style.backgroundColor = '#DCFCE7'; pill.style.color = '#15803D'; }
-    else{ pill.style.backgroundColor = '#FFEDD5'; pill.style.color = '#C2410C'; }
-  });
-
-  const htmlContent = wrapper.innerHTML;
-  const plainText = Array.from(table.querySelectorAll('tr')).map(tr =>
-    Array.from(tr.children).map(cell => cell.innerText.trim()).join('\t')
-  ).join('\n');
+async function screenshotElement(elementId, filename, btnId, iconId, defaultLabel){
+  const target = document.getElementById(elementId);
+  const btn = document.getElementById(btnId);
+  const icon = document.getElementById(iconId);
+  const label = btn.childNodes[btn.childNodes.length - 1];
 
   try{
-    if(navigator.clipboard && window.ClipboardItem){
-      const item = new ClipboardItem({
-        'text/html': new Blob([htmlContent], { type: 'text/html' }),
-        'text/plain': new Blob([plainText], { type: 'text/plain' })
-      });
-      await navigator.clipboard.write([item]);
-    }else{
-      await navigator.clipboard.writeText(plainText);
-    }
+    const canvas = await html2canvas(target, {
+      backgroundColor: '#FFFFFF',
+      scale: 2, // resolusi lebih tajam
+      useCORS: true
+    });
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename.replace(/\s+/g, '-') + '.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+
     icon.textContent = '✅';
-    const label = btn.childNodes[btn.childNodes.length - 1];
-    if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Tersalin!';
+    if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Tersimpan!';
     setTimeout(() => {
-      icon.textContent = '📋';
-      if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Salin tabel';
+      icon.textContent = '📷';
+      if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' ' + defaultLabel;
     }, 2000);
   }catch(err){
-    alert('Gagal menyalin tabel. Coba lagi atau seleksi tabel secara manual (klik-drag lalu Ctrl+C).');
-    console.error('[Dashboard] Gagal copy tabel:', err);
+    alert('Gagal membuat screenshot. Coba lagi.');
+    console.error('[Dashboard] Gagal screenshot:', err);
   }
 }
 
