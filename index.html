@@ -107,6 +107,7 @@
   tbody tr:hover td{ background:var(--teal-soft) !important; }
   .num{ text-align:right; white-space:nowrap; }
   .scroll-table{ max-height:420px; overflow:auto; border:1px solid var(--line-soft); border-radius:var(--radius); }
+  .table-expand{ border:1px solid var(--line-soft); border-radius:var(--radius); overflow:visible; }
   tfoot td{ background:var(--navy); color:var(--white); font-weight:700; border-bottom:none; position:sticky; bottom:0; }
   .status-pill{ display:inline-block; font-size:11.5px; font-weight:700; padding:5px 14px; border-radius:6px; box-shadow:0 1px 2px rgba(15,23,42,0.12); white-space:nowrap; }
   .status-pill.paid{ background:#DCFCE7; color:#15803D; }
@@ -274,7 +275,7 @@
       <div class="filterbar" style="margin-bottom:12px;">
         <select id="bulanSel"></select>
       </div>
-      <div class="scroll-table" id="bayarTableCaptureArea">
+      <div class="table-expand" id="bayarTableCaptureArea">
         <table id="bayarTable">
           <thead>
             <tr>
@@ -884,48 +885,78 @@ function populateFilters(){
 
   document.getElementById('btnScreenshotBayarTable').addEventListener('click', () => {
     const bulanText = document.getElementById('bulanSel').selectedOptions[0].textContent.trim();
-    screenshotElement('bayarTableCaptureArea', `tabel-rencana-realisasi-bayar-${bulanText}`,
-      'btnScreenshotBayarTable', 'screenshotBayarIcon', 'Screenshot tabel');
+    screenshotElement('bayarTableCaptureArea', 'btnScreenshotBayarTable', 'screenshotBayarIcon',
+      'Screenshot tabel', `tabel-rencana-realisasi-bayar-${bulanText}`);
   });
 
   document.getElementById('btnScreenshotBayarChart').addEventListener('click', () => {
-    screenshotElement('bayarChartCaptureArea', 'tren-rencana-realisasi-bayar-bulanan',
-      'btnScreenshotBayarChart', 'screenshotBayarChartIcon', 'Screenshot');
+    screenshotElement('bayarChartCaptureArea', 'btnScreenshotBayarChart', 'screenshotBayarChartIcon',
+      'Screenshot', 'tren-rencana-realisasi-bayar-bulanan');
   });
 }
 
-async function screenshotElement(elementId, filename, btnId, iconId, defaultLabel){
+async function screenshotElement(elementId, btnId, iconId, defaultLabel, filenameFallback){
   const target = document.getElementById(elementId);
   const btn = document.getElementById(btnId);
   const icon = document.getElementById(iconId);
   const label = btn.childNodes[btn.childNodes.length - 1];
 
-  try{
-    const canvas = await html2canvas(target, {
-      backgroundColor: '#FFFFFF',
-      scale: 2, // resolusi lebih tajam
-      useCORS: true
-    });
-    canvas.toBlob(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename.replace(/\s+/g, '-') + '.png';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }, 'image/png');
+  // windowWidth dipaksa lebar desktop supaya hasil screenshot tetap tajam & proporsional
+  // meski dibuka dari layar HP yang sempit — bukan ikut lebar layar perangkat asli.
+  const renderCanvas = () => html2canvas(target, {
+    backgroundColor: '#FFFFFF',
+    scale: 2,
+    useCORS: true,
+    windowWidth: 1200
+  });
 
-    icon.textContent = '✅';
-    if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Tersimpan!';
-    setTimeout(() => {
-      icon.textContent = '📷';
-      if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' ' + defaultLabel;
-    }, 2000);
+  const setBusy = () => {
+    icon.textContent = '⏳';
+    if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Memproses...';
+  };
+  const resetLabel = (delay) => setTimeout(() => {
+    icon.textContent = '📷';
+    if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' ' + defaultLabel;
+  }, delay);
+
+  setBusy();
+
+  try{
+    if(navigator.clipboard && window.ClipboardItem){
+      // Blob dibungkus Promise supaya browser tetap mengaitkan aksi salin dengan
+      // klik tombol (user gesture) walau proses render-nya berjalan async.
+      const item = new ClipboardItem({
+        'image/png': renderCanvas().then(canvas => new Promise(resolve => canvas.toBlob(resolve, 'image/png')))
+      });
+      await navigator.clipboard.write([item]);
+      icon.textContent = '✅';
+      if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Tersalin! Tempel di WA/Slides (Ctrl+V)';
+      resetLabel(3000);
+      return;
+    }
+    throw new Error('Clipboard image API tidak didukung browser ini');
   }catch(err){
-    alert('Gagal membuat screenshot. Coba lagi.');
-    console.error('[Dashboard] Gagal screenshot:', err);
+    console.warn('[Dashboard] Salin ke clipboard gagal, fallback unduh file:', err);
+    try{
+      const canvas = await renderCanvas();
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filenameFallback.replace(/\s+/g, '-') + '.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+      icon.textContent = '⬇️';
+      if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Browser tidak dukung salin gambar — file diunduh';
+      resetLabel(3500);
+    }catch(err2){
+      alert('Gagal membuat screenshot. Coba lagi.');
+      console.error('[Dashboard] Gagal screenshot total:', err2);
+      resetLabel(500);
+    }
   }
 }
 
