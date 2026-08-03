@@ -521,6 +521,55 @@ function parseContracts(json){
   return out;
 }
 
+function openStatusListOverlay(statusFilter, cardLabel){
+  const tahunSel = document.getElementById('tahunSel');
+  const tahun = tahunSel ? tahunSel.value : '__ALL__';
+  let filtered = tahun === '__ALL__' ? CONTRACTS : CONTRACTS.filter(k => k.tahun === tahun);
+  if(statusFilter !== null){
+    filtered = filtered.filter(k => k.status === statusFilter);
+  }
+
+  const rows = filtered.length ? filtered.map(k => {
+    const idx = CONTRACTS.indexOf(k);
+    return `
+    <tr>
+      <td style="min-width:160px;">${k.noKontrak}</td>
+      <td style="min-width:240px;">${k.judul}</td>
+      <td style="min-width:160px;">${k.penyedia}</td>
+      <td class="num">${k.nilai || '–'}</td>
+      <td style="text-align:center;">${statusPill(k.status)}</td>
+      <td style="text-align:center;">
+        <button onclick="openKontrakDetail(CONTRACTS[${idx}])" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">Detail</button>
+      </td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada kontrak pada kategori ini.</td></tr>`;
+
+  openOverlay(`
+    <div class="overlay-head">
+      <div>
+        <p style="font-size:16px; font-weight:600; margin:0 0 2px;">${cardLabel}</p>
+        <p style="font-size:12px; color:var(--ink-2); margin:0;">${filtered.length} kontrak${tahun !== '__ALL__' ? ' · Tahun ' + tahun : ''}</p>
+      </div>
+      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
+    </div>
+    <div class="scroll-table" style="max-height:65vh;">
+      <table>
+        <thead>
+          <tr>
+            <th>No Kontrak</th>
+            <th>Judul kontrak</th>
+            <th>Penyedia</th>
+            <th class="num">Nilai Kontrak</th>
+            <th style="text-align:center;">Status</th>
+            <th style="text-align:center;">Detail</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `, true);
+}
+
 /* ============== RENDER: STATUS KONTRAK ============== */
 function renderStatus(tahun){
   const filtered = tahun === '__ALL__' ? CONTRACTS : CONTRACTS.filter(k => k.tahun === tahun);
@@ -530,27 +579,27 @@ function renderStatus(tahun){
   const totalNilai = filtered.reduce((sum, k) => sum + (k.nilaiNum || 0), 0);
 
   document.getElementById('statusCards').innerHTML = `
-    <div class="card-soft" style="background:var(--teal-soft);">
+    <div class="card-soft" style="background:var(--teal-soft); cursor:pointer;" onclick="openStatusListOverlay(null, 'Semua Kontrak')">
       <p class="kpi-label" style="color:var(--teal-dark);">Jumlah kontrak (N)</p>
       <p class="kpi-value" style="color:var(--teal-dark);">${n}</p>
     </div>
-    <div class="card-soft" style="background:var(--st-green-bg);">
+    <div class="card-soft" style="background:var(--st-green-bg); cursor:pointer;" onclick="openStatusListOverlay('Selesai', 'Kontrak Selesai')">
       <p class="kpi-label" style="color:var(--st-green-fg);">Selesai</p>
       <p class="kpi-value" style="color:var(--st-green-fg);">${count['Selesai']}</p>
     </div>
-    <div class="card-soft" style="background:var(--st-amber-bg);">
+    <div class="card-soft" style="background:var(--st-amber-bg); cursor:pointer;" onclick="openStatusListOverlay('Masa Pemeliharaan', 'Kontrak Masa Pemeliharaan')">
       <p class="kpi-label" style="color:var(--st-amber-fg);">Masa pemeliharaan</p>
       <p class="kpi-value" style="color:var(--st-amber-fg);">${count['Masa Pemeliharaan']}</p>
     </div>
-    <div class="card-soft" style="background:var(--st-blue-bg);">
+    <div class="card-soft" style="background:var(--st-blue-bg); cursor:pointer;" onclick="openStatusListOverlay('Konstruksi', 'Kontrak Konstruksi')">
       <p class="kpi-label" style="color:var(--st-blue-fg);">Konstruksi</p>
       <p class="kpi-value" style="color:var(--st-blue-fg);">${count['Konstruksi']}</p>
     </div>
-    <div class="card-soft" style="background:var(--st-violet-bg);">
+    <div class="card-soft" style="background:var(--st-violet-bg); cursor:pointer;" onclick="openStatusListOverlay('Non-Kontraktual', 'Kontrak Non-Kontraktual')">
       <p class="kpi-label" style="color:var(--st-violet-fg);">Non-Kontraktual</p>
       <p class="kpi-value" style="color:var(--st-violet-fg);">${count['Non-Kontraktual']}</p>
     </div>
-    <div class="card-soft" style="background:var(--yellow-soft);">
+    <div class="card-soft" style="background:var(--yellow-soft); cursor:pointer;" onclick="openStatusListOverlay(null, 'Semua Kontrak (Total Nilai)')">
       <p class="kpi-label" style="color:#92400E;">Total nilai kontrak</p>
       <p class="kpi-value" style="color:#92400E; font-size:18px;">${formatRpShort(totalNilai)}</p>
     </div>`;
