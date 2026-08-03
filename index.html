@@ -533,13 +533,18 @@ function openStatusListOverlay(statusFilter, cardLabel){
     const idx = CONTRACTS.indexOf(k);
     return `
     <tr>
-      <td style="min-width:160px;">${k.noKontrak}</td>
-      <td style="min-width:240px;">${k.judul}</td>
-      <td style="min-width:160px;">${k.penyedia}</td>
-      <td class="num">${k.nilai || '–'}</td>
-      <td style="text-align:center;">${statusPill(k.status)}</td>
-      <td style="text-align:center;">
-        <button onclick="openKontrakDetail(CONTRACTS[${idx}])" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">Detail</button>
+      <td style="width:15%;">${k.noKontrak}</td>
+      <td style="width:29%;">${k.judul}</td>
+      <td style="width:18%;">${k.penyedia}</td>
+      <td class="num" style="width:14%;">${k.nilai || '–'}</td>
+      <td style="text-align:center; width:12%;">${statusPill(k.status)}</td>
+      <td style="text-align:center; width:12%;">
+        <button id="btnStatusDetail${idx}" onclick="toggleStatusDetail(${idx})" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">▼ Detail</button>
+      </td>
+    </tr>
+    <tr id="statusDetailRow${idx}" style="display:none;">
+      <td colspan="6" style="padding:14px 18px; background:var(--surface);">
+        ${buildKontrakDetailContent(k)}
       </td>
     </tr>`;
   }).join('') : `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada kontrak pada kategori ini.</td></tr>`;
@@ -548,26 +553,34 @@ function openStatusListOverlay(statusFilter, cardLabel){
     <div class="overlay-head">
       <div>
         <p style="font-size:16px; font-weight:600; margin:0 0 2px;">${cardLabel}</p>
-        <p style="font-size:12px; color:var(--ink-2); margin:0;">${filtered.length} kontrak${tahun !== '__ALL__' ? ' · Tahun ' + tahun : ''}</p>
+        <p style="font-size:12px; color:var(--ink-2); margin:0;">${filtered.length} kontrak${tahun !== '__ALL__' ? ' · Tahun ' + tahun : ''} · klik "Detail" untuk lihat rincian</p>
       </div>
       <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
     </div>
     <div class="scroll-table" style="max-height:65vh;">
-      <table>
+      <table style="table-layout:fixed;">
         <thead>
           <tr>
-            <th>No Kontrak</th>
-            <th>Judul kontrak</th>
-            <th>Penyedia</th>
-            <th class="num">Nilai Kontrak</th>
-            <th style="text-align:center;">Status</th>
-            <th style="text-align:center;">Detail</th>
+            <th style="width:15%;">No Kontrak</th>
+            <th style="width:29%;">Judul kontrak</th>
+            <th style="width:18%;">Penyedia</th>
+            <th class="num" style="width:14%;">Nilai Kontrak</th>
+            <th style="text-align:center; width:12%;">Status</th>
+            <th style="text-align:center; width:12%;">Detail</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
   `, true);
+}
+
+function toggleStatusDetail(idx){
+  const row = document.getElementById('statusDetailRow' + idx);
+  const btn = document.getElementById('btnStatusDetail' + idx);
+  const isHidden = row.style.display === 'none' || row.style.display === '';
+  row.style.display = isHidden ? 'table-row' : 'none';
+  btn.textContent = isHidden ? '▲ Tutup' : '▼ Detail';
 }
 
 /* ============== RENDER: STATUS KONTRAK ============== */
@@ -619,15 +632,8 @@ document.getElementById('overlay').addEventListener('click', e => {
   if(e.target.id === 'overlay') closeOverlay();
 });
 
-function openKontrakDetail(k){
-  const html = `
-    <div class="overlay-head">
-      <div>
-        <p style="font-size:15px; font-weight:600; margin:0 0 4px;">${k.judul}</p>
-        <p style="font-size:12px; color:var(--ink-2); margin:0;">${k.noKontrak}</p>
-      </div>
-      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
-    </div>
+function buildKontrakDetailContent(k){
+  return `
     ${statusPill(k.status)}
     <p class="overlay-group-title">Identitas</p>
     <table class="kv">
@@ -661,6 +667,19 @@ function openKontrakDetail(k){
       <tr><td>Nilai jaminan pelaksanaan</td><td>${k.nilaiJampel || '–'}</td></tr>
     </table>
     ${k.keterangan ? `<p class="overlay-group-title">Keterangan</p><p style="font-size:12.5px; margin:0;">${k.keterangan}</p>` : ''}
+  `;
+}
+
+function openKontrakDetail(k){
+  const html = `
+    <div class="overlay-head">
+      <div>
+        <p style="font-size:15px; font-weight:600; margin:0 0 4px;">${k.judul}</p>
+        <p style="font-size:12px; color:var(--ink-2); margin:0;">${k.noKontrak}</p>
+      </div>
+      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
+    </div>
+    ${buildKontrakDetailContent(k)}
   `;
   openOverlay(html);
 }
