@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard</title>
+
+<style>
+body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f5f5f5;
+    padding:40px;
+}
+
+button{
+    padding:12px 24px;
+    border:none;
+    border-radius:8px;
+    background:#0F9D58;
+    color:white;
+    font-size:16px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#0b8043;
+}
+
+.modal{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.45);
+}
+
+.modal-box{
+    width:90%;
+    height:90%;
+    margin:2% auto;
+    background:#fff;
+    border-radius:10px;
+    overflow:auto;
+    position:relative;
+    padding:20px;
+}
+
+.close{
+    position:absolute;
+    right:20px;
+    top:15px;
+    cursor:pointer;
+    font-size:28px;
+}
+
+table{
+    border-collapse:collapse;
+    width:100%;
+}
+
+th,td{
+    border:1px solid #ccc;
+    padding:8px;
+    font-size:13px;
+}
+
+th{
+    background:#1976D2;
+    color:white;
+    position:sticky;
+    top:0;
+}
+</style>
+
+</head>
+<body>
+
+<button id="btnDetail">Lihat Detail</button>
+
+<div class="modal" id="modal">
+    <div class="modal-box">
+        <span class="close">&times;</span>
+
+        <table id="tbl"></table>
+
+    </div>
+</div>
+
+<script>
+
+const url =
+"https://docs.google.com/spreadsheets/d/1mwtF9nnOwBOczftmNflRvYeUic-dbNQWAaCAxbbkoG4/gviz/tq?sheet=SHEET_NAME&tqx=out:json";
+
+document.getElementById("btnDetail").onclick=async()=>{
+
+    const res=await fetch(url);
+    const txt=await res.text();
+
+    const json=JSON.parse(txt.substr(47).slice(0,-2));
+
+    const cols=json.table.cols;
+    const rows=json.table.rows;
+
+    let html="<tr>";
+
+    cols.forEach(c=>{
+        html+=`<th>${c.label}</th>`;
+    });
+
+    html+="</tr>";
+
+    rows.forEach(r=>{
+
+        html+="<tr>";
+
+        cols.forEach((c,i)=>{
+
+            const val=r.c[i]?.v ?? "";
+
+            html+=`<td>${val}</td>`;
+
+        });
+
+        html+="</tr>";
+
+    });
+
+    document.getElementById("tbl").innerHTML=html;
+
+    document.getElementById("modal").style.display="block";
+
+}
+
+document.querySelector(".close").onclick=()=>{
+    document.getElementById("modal").style.display="none";
+}
+
+window.onclick=(e)=>{
+    if(e.target.className=="modal"){
+        document.getElementById("modal").style.display="none";
+    }
+}
+
+</script>
+
+</body>
+</html>
