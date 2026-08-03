@@ -101,14 +101,16 @@
   .pill{ display:inline-block; font-size:11px; font-weight:600; padding:3px 10px; border-radius:999px; white-space:nowrap; }
 
   table{ width:100%; border-collapse:collapse; font-size:12.5px; }
-  th{ text-align:left; padding:10px 10px; color:var(--white); font-weight:600; background:var(--navy); position:sticky; top:0; z-index:1; }
+  th{ text-align:left; padding:10px 10px; color:var(--white); font-weight:600; background:var(--navy); }
+  .scroll-table th{ position:sticky; top:0; z-index:1; }
   td{ padding:9px 10px; border-bottom:1px solid var(--line-soft); vertical-align:top; }
   tbody tr:nth-child(even) td{ background:var(--surface); }
   tbody tr:hover td{ background:var(--teal-soft) !important; }
   .num{ text-align:right; white-space:nowrap; }
   .scroll-table{ max-height:420px; overflow:auto; border:1px solid var(--line-soft); border-radius:var(--radius); }
   .table-expand{ border:1px solid var(--line-soft); border-radius:var(--radius); overflow:visible; }
-  tfoot td{ background:var(--navy); color:var(--white); font-weight:700; border-bottom:none; position:sticky; bottom:0; }
+  tfoot td{ background:var(--navy); color:var(--white); font-weight:700; border-bottom:none; }
+  .scroll-table tfoot td{ position:sticky; bottom:0; }
   .status-pill{ display:inline-block; font-size:11.5px; font-weight:700; padding:5px 14px; border-radius:6px; box-shadow:0 1px 2px rgba(15,23,42,0.12); white-space:nowrap; }
   .status-pill.paid{ background:#DCFCE7; color:#15803D; }
   .status-pill.unpaid{ background:#FFEDD5; color:#C2410C; }
@@ -891,11 +893,41 @@ function populateFilters(){
 
   document.getElementById('btnScreenshotBayarChart').addEventListener('click', () => {
     screenshotElement('bayarChartCaptureArea', 'btnScreenshotBayarChart', 'screenshotBayarChartIcon',
-      'Screenshot', 'tren-rencana-realisasi-bayar-bulanan');
+      'Screenshot', 'tren-rencana-realisasi-bayar-bulanan',
+      { prepare: prepareChartForScreenshot, restore: restoreChartAfterScreenshot });
   });
 }
 
-async function screenshotElement(elementId, btnId, iconId, defaultLabel, filenameFallback){
+/* Chart.js menggambar isi <canvas> di resolusi sesuai lebar layar SAAT chart pertama
+   dibuat — kalau dibuka dari HP yang sempit, bitmap-nya memang sudah kecil sejak awal,
+   dan sekadar mem-paksa windowWidth lebar saat html2canvas tidak akan menambah resolusi
+   itu (beda mekanisme dari elemen HTML biasa). Makanya di sini canvas-nya benar-benar
+   diperbesar & digambar ulang oleh Chart.js dulu (di luar layar, tak terlihat pengguna),
+   baru di-screenshot, lalu dikembalikan ke ukuran semula. */
+function prepareChartForScreenshot(){
+  return new Promise(resolve => {
+    const container = document.getElementById('bayarChartCaptureArea');
+    container.dataset.origStyle = container.getAttribute('style') || '';
+    container.style.position = 'fixed';
+    container.style.left = '-3000px';
+    container.style.top = '0';
+    container.style.width = '1100px';
+    container.style.maxWidth = 'none';
+    container.style.zIndex = '-1';
+    if(bayarChartInstance) bayarChartInstance.resize();
+    // tunggu 2 frame supaya chart benar-benar selesai digambar ulang sebelum di-capture
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+}
+function restoreChartAfterScreenshot(){
+  const container = document.getElementById('bayarChartCaptureArea');
+  container.setAttribute('style', container.dataset.origStyle || '');
+  delete container.dataset.origStyle;
+  if(bayarChartInstance) bayarChartInstance.resize();
+}
+
+async function screenshotElement(elementId, btnId, iconId, defaultLabel, filenameFallback, hooks){
+  const opts = hooks || {};
   const target = document.getElementById(elementId);
   const btn = document.getElementById(btnId);
   const icon = document.getElementById(iconId);
@@ -903,12 +935,19 @@ async function screenshotElement(elementId, btnId, iconId, defaultLabel, filenam
 
   // windowWidth dipaksa lebar desktop supaya hasil screenshot tetap tajam & proporsional
   // meski dibuka dari layar HP yang sempit — bukan ikut lebar layar perangkat asli.
-  const renderCanvas = () => html2canvas(target, {
-    backgroundColor: '#FFFFFF',
-    scale: 2,
-    useCORS: true,
-    windowWidth: 1200
-  });
+  const renderCanvas = async () => {
+    if(opts.prepare) await opts.prepare();
+    try{
+      return await html2canvas(target, {
+        backgroundColor: '#FFFFFF',
+        scale: 2,
+        useCORS: true,
+        windowWidth: 1200
+      });
+    }finally{
+      if(opts.restore) await opts.restore();
+    }
+  };
 
   const setBusy = () => {
     icon.textContent = '⏳';
