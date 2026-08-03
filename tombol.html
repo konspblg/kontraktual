@@ -86,8 +86,10 @@ th{
 
 <script>
 
+const sheet = encodeURIComponent("SEBARAN PEKERJAAN");
+
 const url =
-"https://docs.google.com/spreadsheets/d/1mwtF9nnOwBOczftmNflRvYeUic-dbNQWAaCAxbbkoG4/gviz/tq?sheet=SHEET_NAME&tqx=out:json";
+`https://docs.google.com/spreadsheets/d/1mwtF9nnOwBOczftmNflRvYeUic-dbNQWAaCAxbbkoG4/gviz/tq?sheet=${sheet}&tqx=out:json`;
 
 document.getElementById("btnDetail").onclick=async()=>{
 
