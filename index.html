@@ -107,7 +107,7 @@
   table{ width:100%; border-collapse:collapse; font-size:12.5px; }
   th{ text-align:left; padding:10px 10px; color:var(--white); font-weight:600; background:var(--navy); }
   .scroll-table th{ position:sticky; top:0; z-index:1; }
-  td{ padding:9px 10px; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  td{ padding:9px 10px; border-bottom:1px solid var(--line-soft); vertical-align:top; overflow-wrap:break-word; word-break:break-word; }
   tbody tr:nth-child(even) td{ background:var(--surface); }
   tbody tr:hover td{ background:var(--teal-soft) !important; }
   .num{ text-align:right; white-space:nowrap; }
@@ -148,7 +148,7 @@
     transform:translateY(-12px) scale(.97);
     transition:transform .25s cubic-bezier(.2,.8,.2,1), max-width .2s ease;
   }
-  .overlay-card.wide{ max-width:920px; }
+  .overlay-card.wide{ max-width:1050px; }
   .overlay.show .overlay-card{ transform:translateY(0) scale(1); }
   .overlay-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
   .overlay-close{ border:none; background:var(--surface); width:30px; height:30px; border-radius:50%; font-size:16px; line-height:1; flex-shrink:0; padding:0; transition:background-color .15s ease, transform .15s ease; }
