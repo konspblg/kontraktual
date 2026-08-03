@@ -1020,7 +1020,8 @@ function openTargetKinerjaOverlay(){
   const nowMonth = new Date().getMonth();
   const rows = TARGET_KINERJA_CONTRACTS.map(k => ({
     judul: k.judul, penyedia: k.penyedia,
-    plan: k.planFisik[nowMonth], actual: k.actualFisik[nowMonth]
+    plan: k.planFisik[nowMonth], actual: k.actualFisik[nowMonth],
+    planBulanan: k.planFisik, actualBulanan: k.actualFisik
   }));
 
   const planVals = rows.map(r => r.plan).filter(v => v !== null);
@@ -1028,7 +1029,24 @@ function openTargetKinerjaOverlay(){
   const avgPlan = planVals.length ? planVals.reduce((a,b)=>a+b,0)/planVals.length : null;
   const avgActual = actualVals.length ? actualVals.reduce((a,b)=>a+b,0)/actualVals.length : null;
 
-  const bodyRows = rows.length ? rows.map(r => {
+  // Tabel mini per bulan (baris 1 = Plan, baris 2 = Actual) untuk satu kontrak
+  function buildMonthlyTable(r){
+    const planCells = r.planBulanan.map(v => `<td class="num">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`).join('');
+    const actualCells = r.actualBulanan.map(v => `<td class="num">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`).join('');
+    const monthHeaders = BULAN_SINGKAT.map(b => `<th style="text-align:right; font-size:10.5px;">${b}</th>`).join('');
+    return `
+      <div style="overflow-x:auto; padding:10px 4px;">
+        <table style="min-width:640px;">
+          <thead><tr><th style="width:90px;">Bulan</th>${monthHeaders}</tr></thead>
+          <tbody>
+            <tr><td style="font-weight:600; color:#1E40AF;">Plan</td>${planCells}</tr>
+            <tr><td style="font-weight:600; color:#15803D;">Actual</td>${actualCells}</tr>
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  const bodyRows = rows.length ? rows.map((r, idx) => {
     const diff = (r.plan !== null && r.actual !== null) ? (r.actual - r.plan) : null;
     const diffColor = diff === null ? 'var(--ink-3)' : (diff >= 0 ? '#15803D' : '#C2410C');
     const diffText = diff === null ? '–' : (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
@@ -1039,18 +1057,26 @@ function openTargetKinerjaOverlay(){
       <td class="num">${r.plan !== null ? r.plan.toFixed(2)+'%' : '–'}</td>
       <td class="num">${r.actual !== null ? r.actual.toFixed(2)+'%' : '–'}</td>
       <td class="num" style="color:${diffColor}; font-weight:600;">${diffText}</td>
+      <td style="text-align:center;">
+        <button id="btnFisikDetail${idx}" onclick="toggleFisikDetail(${idx})" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">▼ Detail</button>
+      </td>
+    </tr>
+    <tr id="fisikDetailRow${idx}" style="display:none;">
+      <td colspan="6" style="padding:0; background:var(--surface);">
+        ${buildMonthlyTable(r)}
+      </td>
     </tr>`;
-  }).join('') : `<tr><td colspan="5" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada kontrak bertanda TARGET KINERJA di kolom Keterangan.</td></tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada kontrak bertanda TARGET KINERJA di kolom Keterangan.</td></tr>`;
 
   openOverlay(`
     <div class="overlay-head">
       <div>
         <p style="font-size:16px; font-weight:600; margin:0 0 2px;">Target Kinerja — ${BULAN_LABEL[nowMonth]}</p>
-        <p style="font-size:12px; color:var(--ink-2); margin:0;">${rows.length} kontrak bertanda "TARGET KINERJA" di kolom Keterangan</p>
+        <p style="font-size:12px; color:var(--ink-2); margin:0;">${rows.length} kontrak bertanda "TARGET KINERJA" di kolom Keterangan · klik "Detail" untuk lihat rincian bulanan</p>
       </div>
       <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
     </div>
-    <div class="scroll-table" style="max-height:60vh;">
+    <div class="scroll-table" style="max-height:65vh;">
       <table>
         <thead>
           <tr>
@@ -1059,6 +1085,7 @@ function openTargetKinerjaOverlay(){
             <th class="num">Plan %</th>
             <th class="num">Actual %</th>
             <th class="num">Selisih</th>
+            <th style="text-align:center;">Detail Bulanan</th>
           </tr>
         </thead>
         <tbody>${bodyRows}</tbody>
@@ -1068,12 +1095,22 @@ function openTargetKinerjaOverlay(){
             <td class="num">${avgPlan !== null ? avgPlan.toFixed(2)+'%' : '–'}</td>
             <td class="num">${avgActual !== null ? avgActual.toFixed(2)+'%' : '–'}</td>
             <td></td>
+            <td></td>
           </tr>
         </tfoot>
       </table>
     </div>
   `, true);
 }
+
+function toggleFisikDetail(idx){
+  const row = document.getElementById('fisikDetailRow' + idx);
+  const btn = document.getElementById('btnFisikDetail' + idx);
+  const isHidden = row.style.display === 'none' || row.style.display === '';
+  row.style.display = isHidden ? 'table-row' : 'none';
+  btn.textContent = isHidden ? '▲ Tutup' : '▼ Detail';
+}
+
 
 /* ============== MAIN ============== */
 async function init(){
