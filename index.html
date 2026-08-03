@@ -31,6 +31,7 @@
     --st-teal-bg:#CCFBF1;    --st-teal-fg:#115E59;
     --st-green-bg:#D1FAE5;   --st-green-fg:#065F46;
     --st-red-bg:#FEE2E2;     --st-red-fg:#991B1B;
+    --st-violet-bg:#EDE9FE;  --st-violet-fg:#6D28D9;
     --radius:8px;
     --shadow-lg:0 20px 40px -8px rgba(15,23,42,0.25), 0 8px 16px -8px rgba(15,23,42,0.15);
   }
@@ -287,9 +288,7 @@
     <section>
       <p class="section-title" style="justify-content:space-between;">
         <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar bulan ini</span>
-        <button id="btnScreenshotBayarTable" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; gap:6px;">
-          <span id="screenshotBayarIcon">📷</span> Screenshot tabel
-        </button>
+        <button id="btnScreenshotBayarTable" title="Screenshot tabel (salin ke clipboard)" style="font-size:15px; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0;"><span id="screenshotBayarIcon">📷</span></button>
       </p>
       <div class="filterbar" style="margin-bottom:12px;">
         <select id="bulanSel"></select>
@@ -315,9 +314,7 @@
     <section>
       <p class="section-title" style="justify-content:space-between;">
         <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar (tren bulanan)</span>
-        <button id="btnScreenshotBayarChart" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; gap:6px;">
-          <span id="screenshotBayarChartIcon">📷</span> Screenshot
-        </button>
+        <button id="btnScreenshotBayarChart" title="Screenshot chart (salin ke clipboard)" style="font-size:15px; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0;"><span id="screenshotBayarChartIcon">📷</span></button>
       </p>
       <div id="bayarChartCaptureArea" style="background:var(--white); padding:4px;">
         <div class="grid-4" style="margin-bottom:14px;">
@@ -388,7 +385,8 @@ const STATUS_COLOR = {
   'Konstruksi': ['var(--st-blue-bg)','var(--st-blue-fg)'],
   'SELESAI KONTRAK': ['var(--st-green-bg)','var(--st-green-fg)'],
   'EXPIRED': ['var(--st-red-bg)','var(--st-red-fg)'],
-  'AKTIF': ['var(--st-teal-bg)','var(--st-teal-fg)']
+  'AKTIF': ['var(--st-teal-bg)','var(--st-teal-fg)'],
+  'Non-Kontraktual': ['var(--st-violet-bg)','var(--st-violet-fg)']
 };
 function statusPill(text){
   const key = (text||'').toString().trim();
@@ -527,7 +525,7 @@ function parseContracts(json){
 function renderStatus(tahun){
   const filtered = tahun === '__ALL__' ? CONTRACTS : CONTRACTS.filter(k => k.tahun === tahun);
   const n = filtered.length;
-  const count = { 'Selesai':0, 'Masa Pemeliharaan':0, 'Konstruksi':0 };
+  const count = { 'Selesai':0, 'Masa Pemeliharaan':0, 'Konstruksi':0, 'Non-Kontraktual':0 };
   filtered.forEach(k => { if(count[k.status] !== undefined) count[k.status]++; });
   const totalNilai = filtered.reduce((sum, k) => sum + (k.nilaiNum || 0), 0);
 
@@ -547,6 +545,10 @@ function renderStatus(tahun){
     <div class="card-soft" style="background:var(--st-blue-bg);">
       <p class="kpi-label" style="color:var(--st-blue-fg);">Konstruksi</p>
       <p class="kpi-value" style="color:var(--st-blue-fg);">${count['Konstruksi']}</p>
+    </div>
+    <div class="card-soft" style="background:var(--st-violet-bg);">
+      <p class="kpi-label" style="color:var(--st-violet-fg);">Non-Kontraktual</p>
+      <p class="kpi-value" style="color:var(--st-violet-fg);">${count['Non-Kontraktual']}</p>
     </div>
     <div class="card-soft" style="background:var(--yellow-soft);">
       <p class="kpi-label" style="color:#92400E;">Total nilai kontrak</p>
