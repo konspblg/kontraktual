@@ -37,12 +37,15 @@
 
   *{ box-sizing:border-box; }
 
+  html{ overflow-x:hidden; }
   body{
     margin:0;
     font-family:'Geist','IBM Plex Sans',sans-serif;
     background:#DCE3EA;
     color:var(--ink);
     -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    width:100%;
   }
 
   .wrap{ max-width:1100px; margin:0 auto; padding:0 20px; }
@@ -159,7 +162,8 @@
   .list-item:last-child{ border-bottom:none; }
   .list-item .top{ font-size:12px; color:var(--ink-2); margin-bottom:2px; }
   .list-item .mid{ font-size:13px; margin-bottom:4px; }
-  .list-item .bottom{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .list-item .bottom{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  .list-item .bottom > span{ min-width:0; overflow-wrap:break-word; }
 
   .state-msg{ text-align:center; padding:60px 20px; color:var(--ink-2); font-size:14px; }
   .state-msg.error{ color:var(--st-red-fg); }
@@ -170,7 +174,20 @@
   @media (max-width:600px){
     .kpi-value{ font-size:18px; }
     header.topbar h1{ font-size:16px; }
+    .paper{
+      margin:14px auto 30px;
+      border-radius:12px;
+      padding:20px 16px 26px;
+    }
+    .wrap{ padding:0 14px; }
+    .overlay{ padding:20px 10px; }
+    .overlay-card{ padding:18px 16px 20px; }
+    table{ font-size:11.5px; }
+    th, td{ padding:7px 6px; }
   }
+
+  /* Jaring pengaman tambahan: apapun kontennya, tidak boleh ada yang melebihi lebar layar */
+  img, canvas, table, .card, .card-soft{ max-width:100%; }
 
   /* ===== Login modal ===== */
   #loginOverlay{
@@ -281,11 +298,11 @@
         <table id="bayarTable">
           <thead>
             <tr>
-              <th style="min-width:220px;">Judul kontrak</th>
-              <th style="min-width:160px;">Penyedia</th>
-              <th class="num">Rencana %</th>
-              <th>Rencana Rp</th>
-              <th style="text-align:center;">Status Bayar</th>
+              <th style="width:32%;">Judul kontrak</th>
+              <th style="width:20%;">Penyedia</th>
+              <th class="num" style="width:12%;">Rencana %</th>
+              <th style="width:18%;">Rencana Rp</th>
+              <th style="text-align:center; width:18%;">Status Bayar</th>
             </tr>
           </thead>
           <tbody id="bayarTableBody"></tbody>
@@ -303,7 +320,7 @@
         </button>
       </p>
       <div id="bayarChartCaptureArea" style="background:var(--white); padding:4px;">
-        <div class="grid-4" style="margin-bottom:14px; grid-template-columns:repeat(auto-fit, minmax(240px,1fr));">
+        <div class="grid-4" style="margin-bottom:14px;">
           <div class="card-soft">
             <p class="kpi-label">Rencana bayar tahunan</p>
             <p class="kpi-value" id="kpiRencanaTahunan" style="font-size:19px; word-break:break-word;">–</p>
