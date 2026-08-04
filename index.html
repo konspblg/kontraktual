@@ -667,6 +667,8 @@ function buildKontrakDetailContent(k){
       <tr><td>Nilai jaminan pelaksanaan</td><td>${k.nilaiJampel || '–'}</td></tr>
     </table>
     ${k.keterangan ? `<p class="overlay-group-title">Keterangan</p><p style="font-size:12.5px; margin:0;">${k.keterangan}</p>` : ''}
+    <p class="overlay-group-title">Progres fisik bulanan — Plan vs Actual (%)</p>
+    ${buildMonthlyFisikTable(k.planFisik, k.actualFisik)}
   `;
 }
 
@@ -1086,6 +1088,24 @@ async function screenshotElement(elementId, btnId, iconId, defaultLabel, filenam
   }
 }
 
+// Tabel mini per bulan (baris 1 = Plan, baris 2 = Actual) — dipakai di modal Target Kinerja
+// maupun di kartu Detail Kontrak (dropdown & accordion)
+function buildMonthlyFisikTable(planArr, actualArr){
+  const planCells = planArr.map(v => `<td class="num">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`).join('');
+  const actualCells = actualArr.map(v => `<td class="num">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`).join('');
+  const monthHeaders = BULAN_SINGKAT.map(b => `<th style="text-align:right; font-size:10.5px;">${b}</th>`).join('');
+  return `
+    <div style="overflow-x:auto; padding:10px 4px;">
+      <table style="min-width:640px;">
+        <thead><tr><th style="width:90px;">Bulan</th>${monthHeaders}</tr></thead>
+        <tbody>
+          <tr><td style="font-weight:600; color:#1E40AF;">Plan</td>${planCells}</tr>
+          <tr><td style="font-weight:600; color:#15803D;">Actual</td>${actualCells}</tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
 function openTargetKinerjaOverlay(){
   const nowMonth = new Date().getMonth();
   const rows = TARGET_KINERJA_CONTRACTS.map(k => ({
@@ -1098,23 +1118,6 @@ function openTargetKinerjaOverlay(){
   const actualVals = rows.map(r => r.actual).filter(v => v !== null);
   const avgPlan = planVals.length ? planVals.reduce((a,b)=>a+b,0)/planVals.length : null;
   const avgActual = actualVals.length ? actualVals.reduce((a,b)=>a+b,0)/actualVals.length : null;
-
-  // Tabel mini per bulan (baris 1 = Plan, baris 2 = Actual) untuk satu kontrak
-  function buildMonthlyTable(r){
-    const planCells = r.planBulanan.map(v => `<td class="num">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`).join('');
-    const actualCells = r.actualBulanan.map(v => `<td class="num">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`).join('');
-    const monthHeaders = BULAN_SINGKAT.map(b => `<th style="text-align:right; font-size:10.5px;">${b}</th>`).join('');
-    return `
-      <div style="overflow-x:auto; padding:10px 4px;">
-        <table style="min-width:640px;">
-          <thead><tr><th style="width:90px;">Bulan</th>${monthHeaders}</tr></thead>
-          <tbody>
-            <tr><td style="font-weight:600; color:#1E40AF;">Plan</td>${planCells}</tr>
-            <tr><td style="font-weight:600; color:#15803D;">Actual</td>${actualCells}</tr>
-          </tbody>
-        </table>
-      </div>`;
-  }
 
   const bodyRows = rows.length ? rows.map((r, idx) => {
     const diff = (r.plan !== null && r.actual !== null) ? (r.actual - r.plan) : null;
@@ -1133,7 +1136,7 @@ function openTargetKinerjaOverlay(){
     </tr>
     <tr id="fisikDetailRow${idx}" style="display:none;">
       <td colspan="6" style="padding:0; background:var(--surface);">
-        ${buildMonthlyTable(r)}
+        ${buildMonthlyFisikTable(r.planBulanan, r.actualBulanan)}
       </td>
     </tr>`;
   }).join('') : `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada kontrak bertanda TARGET KINERJA di kolom Keterangan.</td></tr>`;
