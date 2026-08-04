@@ -166,6 +166,22 @@
   .list-item .bottom{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
   .list-item .bottom > span{ min-width:0; overflow-wrap:break-word; }
 
+  /* ===== Search dropdown (Detail Kontrak) ===== */
+  .search-dropdown{
+    position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:20;
+    background:var(--white); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow-lg); max-height:340px; overflow-y:auto;
+  }
+  .search-group-label{
+    font-size:10px; font-weight:700; color:var(--ink-3); text-transform:uppercase;
+    letter-spacing:.03em; padding:8px 12px 4px; background:var(--surface);
+    position:sticky; top:0;
+  }
+  .search-result-item{ padding:9px 12px; cursor:pointer; border-bottom:1px solid var(--line-soft); }
+  .search-result-item:hover{ background:var(--teal-soft); }
+  .search-result-item:last-child{ border-bottom:none; }
+  .search-empty, .search-more{ padding:12px; font-size:12.5px; color:var(--ink-3); text-align:center; }
+
   .state-msg{ text-align:center; padding:60px 20px; color:var(--ink-2); font-size:14px; }
   .state-msg.error{ color:var(--st-red-fg); }
 
@@ -278,10 +294,11 @@
     <section>
       <div class="card">
         <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Detail kontrak</p>
-        <select id="kontrakSel" style="width:100%;">
-          <option value="">Pilih judul kontrak...</option>
-        </select>
-        <p style="font-size:12px; color:var(--ink-3); margin:8px 0 0;">Pilih salah satu, kartu detail akan muncul.</p>
+        <div id="kontrakSearchWrap" style="position:relative;">
+          <input type="text" id="kontrakSearchInput" placeholder="Ketik judul, no. kontrak, atau penyedia..." autocomplete="off" style="width:100%;">
+          <div id="kontrakSearchResults" class="search-dropdown" style="display:none;"></div>
+        </div>
+        <p style="font-size:12px; color:var(--ink-3); margin:8px 0 0;">Ketik kata kunci, hasil langsung tersaring — klik salah satu untuk lihat detail.</p>
       </div>
     </section>
 
@@ -686,6 +703,96 @@ function openKontrakDetail(k){
   openOverlay(html);
 }
 
+/* ============== SEARCH LIVE: DETAIL KONTRAK ============== */
+const KONTRAK_SEARCH_MAX_RESULTS = 40;
+
+function escapeHtml(s){
+  return (s || '').toString()
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function highlightMatch(text, query){
+  const safe = escapeHtml(text);
+  const idx = safe.toLowerCase().indexOf(query.toLowerCase());
+  if(idx === -1) return safe;
+  return safe.slice(0, idx)
+    + '<mark style="background:var(--yellow-soft); color:inherit; padding:0 1px; border-radius:2px;">'
+    + safe.slice(idx, idx + query.length) + '</mark>'
+    + safe.slice(idx + query.length);
+}
+
+function renderKontrakSearchResults(query){
+  const panel = document.getElementById('kontrakSearchResults');
+  const q = query.trim().toLowerCase();
+
+  if(!q){
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    return;
+  }
+
+  const matches = CONTRACTS
+    .map((k, idx) => ({ k, idx }))
+    .filter(({k}) =>
+      (k.judul || '').toLowerCase().includes(q) ||
+      (k.noKontrak || '').toLowerCase().includes(q) ||
+      (k.penyedia || '').toLowerCase().includes(q)
+    );
+
+  if(!matches.length){
+    panel.innerHTML = `<div class="search-empty">Tidak ditemukan kontrak dengan kata kunci "${escapeHtml(query)}".</div>`;
+    panel.style.display = 'block';
+    return;
+  }
+
+  const capped = matches.slice(0, KONTRAK_SEARCH_MAX_RESULTS);
+
+  // Kelompokkan per tahun, urut terbaru dulu — konsisten dengan tampilan lama
+  const grouped = {};
+  capped.forEach(({k, idx}) => {
+    const t = k.tahun || 'Tanpa tahun';
+    if(!grouped[t]) grouped[t] = [];
+    grouped[t].push({k, idx});
+  });
+  const years = Object.keys(grouped).sort((a,b) => b.localeCompare(a));
+
+  let html = years.map(y => `
+    <div class="search-group-label">${escapeHtml(y)}</div>
+    ${grouped[y].map(({k, idx}) => `
+      <div class="search-result-item" onclick="selectKontrakFromSearch(${idx})">
+        <div style="font-size:13px; font-weight:500;">${highlightMatch(k.judul, q)}</div>
+        <div style="font-size:11px; color:var(--ink-2); margin-top:2px;">${highlightMatch(k.noKontrak, q)} · ${highlightMatch(k.penyedia, q)}</div>
+      </div>`).join('')}
+  `).join('');
+
+  if(matches.length > capped.length){
+    html += `<div class="search-more">Menampilkan ${capped.length} dari ${matches.length} hasil — persempit kata kunci untuk hasil lebih akurat</div>`;
+  }
+
+  panel.innerHTML = html;
+  panel.style.display = 'block';
+}
+
+function selectKontrakFromSearch(idx){
+  document.getElementById('kontrakSearchInput').value = '';
+  document.getElementById('kontrakSearchResults').style.display = 'none';
+  document.getElementById('kontrakSearchResults').innerHTML = '';
+  openKontrakDetail(CONTRACTS[idx]);
+}
+
+function setupKontrakSearch(){
+  const input = document.getElementById('kontrakSearchInput');
+  input.addEventListener('input', e => renderKontrakSearchResults(e.target.value));
+  input.addEventListener('focus', e => {
+    if(e.target.value.trim()) renderKontrakSearchResults(e.target.value);
+  });
+  document.addEventListener('click', e => {
+    const wrap = document.getElementById('kontrakSearchWrap');
+    if(wrap && !wrap.contains(e.target)){
+      document.getElementById('kontrakSearchResults').style.display = 'none';
+    }
+  });
+}
+
 /* ============== RENDER: STATUS PIC / PENYEDIA (overlay list) ============== */
 function openListOverlay(title, list){
   const rows = list.length ? list.map(k => `
@@ -906,39 +1013,7 @@ function populateFilters(){
   bulanSel.addEventListener('change', e => renderBayarTable(parseInt(e.target.value,10)));
   renderBayarTable(nowMonth);
 
-  const kontrakSel = document.getElementById('kontrakSel');
-  const tahunUrut = [...new Set(CONTRACTS.map(k => k.tahun).filter(Boolean))].sort().reverse();
-  tahunUrut.forEach(tahun => {
-    const group = document.createElement('optgroup');
-    group.label = tahun;
-    CONTRACTS
-      .map((k, idx) => ({ k, idx }))
-      .filter(({k}) => k.tahun === tahun)
-      .sort((a,b) => a.k.judul.localeCompare(b.k.judul))
-      .forEach(({k, idx}) => {
-        const opt = document.createElement('option');
-        opt.value = idx;
-        opt.textContent = k.judul;
-        group.appendChild(opt);
-      });
-    kontrakSel.appendChild(group);
-  });
-  // kontrak tanpa tahun (jaga-jaga data tidak lengkap)
-  const tanpaTahun = CONTRACTS.map((k, idx) => ({k, idx})).filter(({k}) => !k.tahun);
-  if(tanpaTahun.length){
-    const group = document.createElement('optgroup');
-    group.label = 'Tanpa tahun';
-    tanpaTahun.forEach(({k, idx}) => {
-      const opt = document.createElement('option');
-      opt.value = idx; opt.textContent = k.judul;
-      group.appendChild(opt);
-    });
-    kontrakSel.appendChild(group);
-  }
-  kontrakSel.addEventListener('change', e => {
-    if(e.target.value !== '') openKontrakDetail(CONTRACTS[parseInt(e.target.value,10)]);
-    e.target.value = '';
-  });
+  setupKontrakSearch();
 
   const isPlaceholder = v => !v || v === '-' || v.toUpperCase() === 'N/A';
 
