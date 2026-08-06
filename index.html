@@ -413,9 +413,47 @@ function statusPill(text){
 
 let CONTRACTS = [];
 let TARGET_KINERJA_CONTRACTS = [];
+let LINK_KONTRAK_MAP = new Map(); // no_kontrak (trimmed) -> { linkKontrak, linkSebaran }
+
+// Sheet kedua: DETIL_KONTRAK — sumber link kontrak & link sebaran pekerjaan.
+// Kolom C (NOMOR KONTRAK) di sini sama persis dengan kolom C di sheet MONITORING,
+// dipakai sebagai kunci pencocokan. Sheet ini cuma punya 1 baris header (beda dari
+// MONITORING yang 3 baris), makanya loadSheet dipanggil dengan headerRows=1 di sini.
+const DETIL_KONTRAK_GID = '798316676';
+const DETIL_IDX = { noKontrak: 2, linkKontrak: 35, linkSebaran: 36 };
+
+async function loadLinkKontrakMap(){
+  try{
+    const json = await loadSheet(DETIL_KONTRAK_GID, 1);
+    const rows = json.table.rows;
+    const map = new Map();
+    const isValidUrl = v => v && v.trim() && v.trim().toUpperCase() !== 'N/A' && v.trim() !== '-';
+    rows.forEach(row => {
+      if(!row.c) return;
+      const noKontrak = cellFmt(row, DETIL_IDX.noKontrak).trim();
+      if(!noKontrak) return;
+      const linkKontrak = cellFmt(row, DETIL_IDX.linkKontrak).trim();
+      const linkSebaran = cellFmt(row, DETIL_IDX.linkSebaran).trim();
+      if(isValidUrl(linkKontrak) || isValidUrl(linkSebaran)){
+        map.set(noKontrak, {
+          linkKontrak: isValidUrl(linkKontrak) ? linkKontrak : null,
+          linkSebaran: isValidUrl(linkSebaran) ? linkSebaran : null
+        });
+      }
+    });
+    LINK_KONTRAK_MAP = map;
+    console.info('[Dashboard] Jumlah kontrak dengan link (dari DETIL_KONTRAK):', map.size);
+  }catch(err){
+    // Sheet link bersifat pelengkap — kalau gagal dimuat, dashboard utama tetap jalan
+    // tanpa tombol link, bukan dianggap error fatal.
+    console.warn('[Dashboard] Gagal memuat DETIL_KONTRAK (link kontrak/sebaran):', err);
+    LINK_KONTRAK_MAP = new Map();
+  }
+}
 
 /* ============== FETCH VIA GVIZ (JSONP) ============== */
-function loadSheet(gid){
+function loadSheet(gid, headerRows){
+  const hRows = headerRows !== undefined ? headerRows : HEADER_ROWS;
   return new Promise((resolve, reject) => {
     const cbName = 'gvizCb_' + Math.random().toString(36).slice(2);
     window[cbName] = (json) => {
@@ -424,7 +462,7 @@ function loadSheet(gid){
       script.remove();
     };
     const script = document.createElement('script');
-    script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${gid}&headers=${HEADER_ROWS}&tqx=out:json;responseHandler:${cbName}`;
+    script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${gid}&headers=${hRows}&tqx=out:json;responseHandler:${cbName}`;
     script.onerror = () => reject(new Error('Gagal memuat data. Pastikan spreadsheet sudah dibagikan sebagai "Siapa saja yang memiliki link".'));
     document.body.appendChild(script);
     setTimeout(() => reject(new Error('Waktu tunggu habis saat memuat data dari Google Sheets.')), 15000);
@@ -650,6 +688,14 @@ document.getElementById('overlay').addEventListener('click', e => {
 });
 
 function buildKontrakDetailContent(k){
+  const links = LINK_KONTRAK_MAP.get((k.noKontrak || '').trim());
+  const linkButtonsHtml = (links && (links.linkKontrak || links.linkSebaran)) ? `
+    <p class="overlay-group-title">Tautan terkait</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+      ${links.linkKontrak ? `<a href="${links.linkKontrak}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--teal-dark); border:1px solid var(--teal); border-radius:var(--radius); padding:7px 12px; text-decoration:none;">🔗 Buka Link Kontrak</a>` : ''}
+      ${links.linkSebaran ? `<a href="${links.linkSebaran}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--teal-dark); border:1px solid var(--teal); border-radius:var(--radius); padding:7px 12px; text-decoration:none;">📍 Buka Link Sebaran Pekerjaan</a>` : ''}
+    </div>
+  ` : '';
   return `
     ${statusPill(k.status)}
     <p class="overlay-group-title">Identitas</p>
@@ -684,6 +730,7 @@ function buildKontrakDetailContent(k){
       <tr><td>Nilai jaminan pelaksanaan</td><td>${k.nilaiJampel || '–'}</td></tr>
     </table>
     ${k.keterangan ? `<p class="overlay-group-title">Keterangan</p><p style="font-size:12.5px; margin:0;">${k.keterangan}</p>` : ''}
+    ${linkButtonsHtml}
     <p class="overlay-group-title">Progres fisik bulanan — Plan vs Actual (%)</p>
     ${buildMonthlyFisikTable(k.planFisik, k.actualFisik)}
   `;
@@ -1263,7 +1310,10 @@ function toggleFisikDetail(idx){
 /* ============== MAIN ============== */
 async function init(){
   try{
-    const json = await loadSheet(GID);
+    const [json] = await Promise.all([
+      loadSheet(GID),
+      loadLinkKontrakMap() // sheet pelengkap, tidak pernah reject — lihat catch di dalamnya
+    ]);
     CONTRACTS = parseContracts(json);
     if(!CONTRACTS.length) throw new Error('Data ditemukan tapi kosong. Cek struktur kolom sheet MONITORING.');
 
