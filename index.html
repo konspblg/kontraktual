@@ -118,6 +118,7 @@
   .status-pill{ display:inline-block; font-size:11.5px; font-weight:700; padding:5px 14px; border-radius:6px; box-shadow:0 1px 2px rgba(15,23,42,0.12); white-space:nowrap; }
   .status-pill.paid{ background:#DCFCE7; color:#15803D; }
   .status-pill.unpaid{ background:#FFEDD5; color:#C2410C; }
+  .status-pill.vip{ background:var(--st-violet-bg); color:var(--st-violet-fg); }
 
   .chart-wrap{ position:relative; width:100%; height:260px; }
   .legend{ display:flex; gap:16px; font-size:12px; color:var(--ink-2); margin-top:6px; }
@@ -873,7 +874,12 @@ function renderBayarTable(monthIdx){
       rp: k.planBayarPct[monthIdx], rrp: k.planBayarRp[monthIdx],
       ap: k.actualBayarPct[monthIdx], arp: k.actualBayarRp[monthIdx]
     }))
-    .filter(r => (r.rrp !== null && r.rrp !== 0) || (r.arp !== null && r.arp !== 0));
+    .filter(r => {
+      const adaRencana = r.rrp !== null && r.rrp !== 0;
+      const adaRealisasi = r.arp !== null && r.arp !== 0;
+      const ditandaiVip = r.arp === 0 || r.ap === 0; // tetap tampil walau rencana/realisasi kosong
+      return adaRencana || adaRealisasi || ditandaiVip;
+    });
 
   bayarTablePage = 1;
   renderBayarTablePage();
@@ -898,10 +904,17 @@ function renderBayarTablePage(){
   const pageRows = rows.slice(start, start + BAYAR_ROWS_PER_PAGE);
 
   tbody.innerHTML = pageRows.map(r => {
+    // Terbayar: ada nilai actual > 0 (baik % maupun Rp).
+    // VIP: actual persis 0 (bukan kosong/dash) — ini sinyal dari sheet PEMBAYARAN yang
+    // menandai kontrak sebagai VIP, walau belum ada pembayaran real (beda dari dash "-"
+    // yang berarti benar-benar belum ada data sama sekali).
+    // Belum Terbayar: actual kosong/dash (null), tidak ditandai apapun.
     const sudahBayar = (r.ap !== null && r.ap !== 0) || (r.arp !== null && r.arp !== 0);
-    const pill = sudahBayar
-      ? '<span class="status-pill paid">Terbayar</span>'
-      : '<span class="status-pill unpaid">Belum Terbayar</span>';
+    const isVip = !sudahBayar && (r.arp === 0 || r.ap === 0);
+    let pill;
+    if(sudahBayar) pill = '<span class="status-pill paid">Terbayar</span>';
+    else if(isVip) pill = '<span class="status-pill vip">VIP</span>';
+    else pill = '<span class="status-pill unpaid">Belum Terbayar</span>';
     return `
     <tr>
       <td>${r.judul}</td>
