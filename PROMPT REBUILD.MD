@@ -10,12 +10,23 @@ Saya butuh dashboard HTML satu halaman (single file, HTML+CSS+JS jadi satu) yang
 
 ### 1. Sumber Data
 
+Dashboard fetch **2 sheet berbeda** dari spreadsheet yang sama, secara paralel:
+
+**Sheet utama — MONITORING**
 - Spreadsheet ID: `1OLvF-EFqSZZIwZRK4T3b8VyXLM53OW42GoCzbzasgjI`
 - Sheet/tab: **MONITORING**, gid: `799877147`
 - Sheet punya 3 baris header (group header, header bulan, baris total) sebelum data mulai. Beri tahu ini secara EKSPLISIT ke gviz lewat parameter URL `&headers=3` — JANGAN mengandalkan `.slice(3)` manual di JavaScript, karena gviz punya logika auto-deteksi baris header sendiri yang bisa salah tebak dan menggeser semua data kalau tidak diberi tahu eksplisit.
 
+**Sheet kedua (pelengkap) — DETIL_KONTRAK**
+- Sheet/tab: **DETIL_KONTRAK**, gid: `798316676`, di spreadsheet ID yang SAMA dengan di atas.
+- Cuma punya **1 baris header** (beda dari MONITORING) — panggil dengan `&headers=1`.
+- Fungsinya cuma untuk 2 kolom: **Link Kontrak** dan **Link Sebaran Pekerjaan** — dicocokkan ke sheet MONITORING lewat Nomor Kontrak (kolom C, sama persis di kedua sheet).
+- Sifatnya PELENGKAP — kalau gagal fetch, JANGAN sampai bikin seluruh dashboard error. Tangkap error-nya secara terpisah, dan dashboard utama tetap jalan tanpa tombol link.
+- Fetch sheet ini PARALEL dengan sheet utama (pakai `Promise.all`), bukan berurutan, supaya tidak menambah waktu loading.
+
 ### 2. Mapping Kolom (index 0-based)
 
+**MONITORING:**
 ```js
 const IDX = {
   unit:0, unitPelaksana:1, noKontrak:2, noPrk:3, tahun:4, judul:5, nilai:6,
@@ -28,11 +39,17 @@ const IDX = {
 };
 ```
 
+**DETIL_KONTRAK:**
+```js
+const DETIL_IDX = { noKontrak: 2, linkKontrak: 35, linkSebaran: 36 };
+```
+
 Catatan penting:
 - `planFisik`, `actualFisik`, `planBayarPct`, `actualBayarPct`, `planBayarRp`, `actualBayarRp` masing-masing adalah AWAL dari rentang 12 kolom berurutan (Januari–Desember). Baca sebagai array 12 nilai mulai dari index itu.
 - Kolom `status` (index 18) berisi salah satu dari: `Selesai`, `Masa Pemeliharaan`, `Konstruksi`, `Non-Kontraktual`.
 - Kolom `keterangan` (index 29) kadang berisi teks yang mengandung kata **"TARGET KINERJA"** — ini dipakai sebagai penanda kontrak mana yang masuk hitungan rata-rata di chart Target Kinerja (lihat bagian fitur di bawah).
 - SEMUA angka persentase dan Rupiah di sheet sumbernya **kadang tersimpan sebagai teks** (bukan angka asli), karena user mengetik manual tanpa format cell yang benar. Parser HARUS robust: baca dari `cell.v` (value) atau `cell.f` (formatted string) apapun tipenya, buang karakter non-digit (`Rp`, `%`, spasi), lalu `parseFloat()`. Untuk persentase: kalau nilai numerik ≤ 1.5, asumsikan itu pecahan dan kalikan 100; kalau lebih besar, anggap sudah dalam bentuk persen utuh (misal 71.69 = 71.69%, bukan 7169%).
+- Banyak kolom di MONITORING adalah formula dengan pola `=IF(kondisi,nilai,"")` yang merujuk ke sheet lain. Kalau kondisinya tidak cocok, hasilnya string kosong `""` (dibaca sebagai null/dash oleh dashboard). Kalau kondisinya cocok TAPI nilai rujukannya kebetulan 0, hasilnya angka 0 ASLI (beda dari string kosong!) — ditampilkan sebagai "Rp0.00" kalau format selnya Keuangan. Perbedaan "kosong beneran" vs "angka nol asli" ini dipakai sebagai sinyal untuk status VIP (lihat poin F di bagian Fitur).
 
 ### 3. Fitur — daftar lengkap
 
@@ -67,12 +84,16 @@ Kelompokkan jadi beberapa bagian kecil (jangan satu list panjang):
 - BAST dan Masa Pemeliharaan: Tgl BAST I, Durasi Pemeliharaan, Akhir Masa Pemeliharaan, Tgl BAST II, Tgl BAP BAST II
 - Jaminan Pelaksanaan: Tgl Bank Garansi, Akhir Jaminan Pelaksanaan, Status Jampel (pill warna), Nilai Jaminan Pelaksanaan
 - Keterangan (kalau ada isinya)
+- **Tautan Terkait** (kalau ada di data): tombol "🔗 Buka Link Kontrak" dan "📍 Buka Link Sebaran Pekerjaan", masing-masing `target="_blank"`, diambil dari sheet DETIL_KONTRAK yang dicocokkan lewat Nomor Kontrak. Tombol yang link-nya kosong/`-`/`N/A` JANGAN ditampilkan sama sekali (bukan ditampilkan sebagai link mati).
 - **Di baris paling akhir**: tabel "Progres Fisik Bulanan — Plan vs Actual (%)" — 12 kolom bulan (Jan–Des), 2 baris (Plan, Actual), datanya dari `planFisik`/`actualFisik` milik kontrak itu sendiri (bukan cuma yang tag Target Kinerja — SEMUA kontrak punya data ini kalau tersedia).
 
 **F. Rencana vs Realisasi Bayar Bulan Ini**
 - Dropdown pilih bulan (Jan–Des).
-- Tabel per kontrak (bukan card ringkasan): Judul Kontrak, Penyedia, Rencana %, Rencana Rp (rata kiri), **Status Bayar** (pill: hijau "Terbayar" kalau realisasi ada isinya, oranye "Belum Terbayar" kalau kosong — BUKAN kolom Realisasi Rp/% mentah).
-- Kontrak yang rencana & realisasinya sama-sama kosong disembunyikan dari tabel.
+- Tabel per kontrak (bukan card ringkasan): Judul Kontrak, Penyedia, Rencana %, Rencana Rp (rata kiri), **Status Bayar** — pill dengan 3 kemungkinan, SEMUA ditentukan HANYA dari kolom Actual Rp (jangan campur dengan kolom Actual %, karena keduanya bisa punya formula sumber berbeda dan tidak selalu sinkron):
+  - **Terbayar** (hijau) — Actual Rp berisi angka > Rp1
+  - **VIP** (ungu) — Actual Rp berisi angka 0 yang ASLI (bukan string kosong) — beda dari "belum ada data". Pakai toleransi kecil (`Math.abs(v) < 1`) untuk jaga-jaga sisa desimal super kecil dari formula spreadsheet.
+  - **Belum Terbayar** (oranye) — Actual Rp kosong/null (dash `-`)
+- Kontrak yang rencana & realisasi & tanda VIP-nya sama-sama kosong disembunyikan dari tabel; kontrak yang ditandai VIP tetap tampil walau rencananya kosong.
 - **Pagination 10 baris per halaman** (tombol Sebelumnya/Berikutnya), TIDAK BOLEH ada scroll — tabel memanjang ke bawah secara alami.
 - Baris total di bawah (background navy): Total Rencana Rp + Total Realisasi Rp (dengan label kecil "Rencana"/"Realisasi" masing-masing, simetris), dihitung dari SEMUA kontrak bulan itu (bukan cuma halaman yang tampil).
 - Tombol screenshot (ikon 📷 saja, TANPA teks label) di pojok kanan atas section — klik untuk salin gambar tabel ke clipboard (lihat poin I).
@@ -95,6 +116,11 @@ Kelompokkan jadi beberapa bagian kecil (jangan satu list panjang):
 - Hasil capture **langsung disalin ke clipboard** (pakai `navigator.clipboard.write` dengan `ClipboardItem`), supaya user tinggal Ctrl+V paste ke WhatsApp/Google Slides/Docs — BUKAN download file otomatis (kalau browser tidak mendukung clipboard image, baru fallback ke download).
 - PENTING — resolusi di HP: `windowWidth` milik html2canvas HANYA berlaku untuk konten HTML biasa, TIDAK berlaku untuk elemen `<canvas>` (chart Chart.js). Chart digambar oleh Chart.js dengan resolusi sesuai lebar layar SAAT dibuat — kalau dibuka dari HP sempit, resolusinya kecil sejak awal. Untuk screenshot chart yang tajam dari HP: sebelum capture, PAKSA container chart resize ke lebar besar (mis. 1100px) secara **di luar layar** (`position:fixed; left:-3000px;` supaya tidak kelihatan user), panggil `chartInstance.resize()` supaya Chart.js redraw ulang di resolusi besar, tunggu 2 `requestAnimationFrame`, baru capture, lalu kembalikan ukuran semula.
 - Untuk tabel HTML biasa, `windowWidth:1200` pada html2canvas options cukup untuk memaksa render lebar desktop meski dibuka dari HP.
+
+**J. Integrasi Sheet Kedua (DETIL_KONTRAK) — link kontrak & sebaran pekerjaan**
+- Fetch sheet MONITORING (wajib berhasil) dan DETIL_KONTRAK (opsional/pelengkap) secara PARALEL pakai `Promise.all`, bukan berurutan.
+- Bungkus fetch DETIL_KONTRAK dengan try/catch sendiri — kalau gagal, JANGAN throw ke luar (jangan bikin dashboard utama ikut gagal), cukup log warning dan lanjut dengan peta link kosong.
+- Hasil fetch DETIL_KONTRAK disimpan sebagai `Map` (key: Nomor Kontrak yang sudah di-trim, value: `{linkKontrak, linkSebaran}`), supaya pencarian saat render kartu detail kontrak cepat (`O(1)` lookup, bukan looping ulang tiap kali).
 
 ### 4. Desain / UI-UX
 
