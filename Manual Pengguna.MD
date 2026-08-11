@@ -40,12 +40,16 @@ Klik salah satu hasil pencarian untuk membuka kartu detail lengkap kontrak terse
 - BAST dan Masa Pemeliharaan
 - Jaminan Pelaksanaan (termasuk status Jampel, apakah masih berlaku atau sudah kedaluwarsa)
 - Keterangan (kalau ada)
+- **Tautan Terkait** (kalau tersedia) — tombol **🔗 Buka Link Kontrak** dan **📍 Buka Link Sebaran Pekerjaan**, langsung membuka dokumen terkait di tab baru. Kalau tombolnya tidak muncul, berarti link untuk kontrak itu belum diisi di sumber data.
 - **Tabel Progres Fisik Bulanan** — perbandingan rencana (Plan) vs realisasi (Actual) progres fisik per bulan, Januari sampai Desember
 
 ### D. Rencana vs Realisasi Bayar Bulan Ini
 
 1. Pilih bulan dari dropdown.
-2. Tabel menampilkan semua kontrak yang punya rencana/realisasi pembayaran di bulan itu — judul kontrak, penyedia, persentase rencana, nilai rencana (Rupiah), dan status pembayaran (**Terbayar** / **Belum Terbayar**).
+2. Tabel menampilkan semua kontrak yang punya rencana/realisasi pembayaran di bulan itu — judul kontrak, penyedia, persentase rencana, nilai rencana (Rupiah), dan status pembayaran:
+   - 🟢 **Terbayar** — sudah ada realisasi pembayaran di bulan itu
+   - 🟣 **VIP** — kontrak yang secara khusus ditandai prioritas/VIP di sumber data, meski realisasi pembayarannya masih nol
+   - 🟠 **Belum Terbayar** — belum ada realisasi maupun tanda apapun
 3. Kalau datanya lebih dari 10 baris, otomatis terbagi jadi beberapa halaman — pakai tombol **Sebelumnya** / **Berikutnya** di bawah tabel untuk pindah halaman.
 4. Baris paling bawah (warna gelap) menampilkan **total keseluruhan** (bukan cuma halaman yang sedang dilihat).
 
