@@ -876,8 +876,8 @@ function renderBayarTable(monthIdx){
     }))
     .filter(r => {
       const adaRencana = r.rrp !== null && r.rrp !== 0;
-      const adaRealisasi = r.arp !== null && r.arp !== 0;
-      const ditandaiVip = r.arp === 0 || r.ap === 0; // tetap tampil walau rencana/realisasi kosong
+      const adaRealisasi = r.arp !== null && Math.abs(r.arp) >= 1;
+      const ditandaiVip = r.arp !== null && Math.abs(r.arp) < 1; // tetap tampil walau rencana kosong
       return adaRencana || adaRealisasi || ditandaiVip;
     });
 
@@ -904,13 +904,16 @@ function renderBayarTablePage(){
   const pageRows = rows.slice(start, start + BAYAR_ROWS_PER_PAGE);
 
   tbody.innerHTML = pageRows.map(r => {
-    // Terbayar: ada nilai actual > 0 (baik % maupun Rp).
-    // VIP: actual persis 0 (bukan kosong/dash) — ini sinyal dari sheet PEMBAYARAN yang
-    // menandai kontrak sebagai VIP, walau belum ada pembayaran real (beda dari dash "-"
-    // yang berarti benar-benar belum ada data sama sekali).
-    // Belum Terbayar: actual kosong/dash (null), tidak ditandai apapun.
-    const sudahBayar = (r.ap !== null && r.ap !== 0) || (r.arp !== null && r.arp !== 0);
-    const isVip = !sudahBayar && (r.arp === 0 || r.ap === 0);
+    // Formula sumbernya: =IF(PROGRESS_BAYAR!$C..=$C..,PROGRESS_BAYAR!EV..,"")
+    // Kalau kondisi TIDAK cocok → hasilnya string kosong "" → kebaca null (dash "-").
+    // Kalau kondisi COCOK tapi nilainya kebetulan 0 → angka 0 ASLI → format Keuangan
+    // tampil "Rp0.00". Ini sinyal VIP dari sheet PROGRESS_BAYAR.
+    // Patokan status HANYA dari kolom Actual Rp (arp) — bukan Actual % (ap), karena
+    // kolom % punya rumus sendiri yang bisa saja masih berisi angka lain.
+    // Toleransi kecil (<1 rupiah) untuk jaga-jaga sisa desimal super kecil dari rumus.
+    const isEffectivelyZero = v => v !== null && Math.abs(v) < 1;
+    const sudahBayar = r.arp !== null && !isEffectivelyZero(r.arp);
+    const isVip = r.arp !== null && isEffectivelyZero(r.arp);
     let pill;
     if(sudahBayar) pill = '<span class="status-pill paid">Terbayar</span>';
     else if(isVip) pill = '<span class="status-pill vip">VIP</span>';
