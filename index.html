@@ -916,7 +916,7 @@ function renderBayarTablePage(){
     const isVip = r.arp !== null && isEffectivelyZero(r.arp);
     let pill;
     if(sudahBayar) pill = '<span class="status-pill paid">Terbayar</span>';
-    else if(isVip) pill = '<span class="status-pill vip">VIP</span>';
+    else if(isVip) pill = '<span class="status-pill vip">Proses VIP</span>';
     else pill = '<span class="status-pill unpaid">Belum Terbayar</span>';
     return `
     <tr>
