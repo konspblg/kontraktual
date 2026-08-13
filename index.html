@@ -207,6 +207,45 @@
   /* Jaring pengaman tambahan: apapun kontennya, tidak boleh ada yang melebihi lebar layar */
   img, canvas, table, .card, .card-soft{ max-width:100%; }
 
+  /* ===== Tabel → kartu di layar sempit (HP) =====
+     Tabel dengan banyak kolom (misal Status Kontrak, Rencana vs Realisasi Bayar) akan
+     terlihat sangat sempit & teksnya terpotong huruf-per-huruf kalau dipaksa tetap
+     berbentuk tabel biasa di layar HP. Solusinya: tabel dengan class "responsive-stack"
+     berubah jadi tumpukan kartu — tiap baris data jadi 1 kartu, label kolom tampil di
+     atas nilainya (bukan berdampingan), jadi tidak perlu scroll horizontal sama sekali. */
+  @media (max-width:680px){
+    table.responsive-stack thead{ display:none !important; }
+    table.responsive-stack, table.responsive-stack tbody, table.responsive-stack tr,
+    table.responsive-stack td{
+      display:block !important; width:100% !important; box-sizing:border-box;
+    }
+    table.responsive-stack tbody tr{
+      margin-bottom:10px; border:1px solid var(--line); border-radius:10px;
+      padding:10px 12px; background:var(--white); overflow:hidden;
+    }
+    table.responsive-stack tbody tr[id^="fisikDetailRow"],
+    table.responsive-stack tbody tr[id^="statusDetailRow"]{
+      border:none; padding:0; margin-bottom:10px; background:transparent;
+    }
+    table.responsive-stack td{
+      text-align:left !important; padding:5px 0 !important; border:none !important;
+      white-space:normal !important; word-break:break-word; min-width:0 !important;
+    }
+    table.responsive-stack td[data-label]::before{
+      content: attr(data-label);
+      display:block; font-size:10px; font-weight:700; color:var(--ink-3);
+      text-transform:uppercase; letter-spacing:.02em; margin-bottom:2px;
+    }
+    table.responsive-stack td[colspan]{ padding:8px 0 0 !important; }
+    table.responsive-stack tfoot td{
+      display:block !important; width:100% !important; text-align:left !important;
+      padding:6px 0 !important; box-sizing:border-box;
+    }
+    table.responsive-stack tfoot tr{
+      display:block; border-radius:10px; overflow:hidden; padding:10px 12px;
+    }
+  }
+
   /* ===== Login modal ===== */
   #loginOverlay{
     position:fixed; inset:0; z-index:200;
@@ -312,7 +351,7 @@
         <select id="bulanSel"></select>
       </div>
       <div class="table-expand" id="bayarTableCaptureArea">
-        <table id="bayarTable">
+        <table id="bayarTable" class="responsive-stack">
           <thead>
             <tr>
               <th style="width:32%;">Judul kontrak</th>
@@ -589,11 +628,11 @@ function openStatusListOverlay(statusFilter, cardLabel){
     const idx = CONTRACTS.indexOf(k);
     return `
     <tr>
-      <td style="width:15%;">${k.noKontrak}</td>
-      <td style="width:29%;">${k.judul}</td>
-      <td style="width:18%;">${k.penyedia}</td>
-      <td class="num" style="width:14%;">${k.nilai || '–'}</td>
-      <td style="text-align:center; width:12%;">${statusPill(k.status)}</td>
+      <td style="width:15%;" data-label="No Kontrak">${k.noKontrak}</td>
+      <td style="width:29%;" data-label="Judul kontrak">${k.judul}</td>
+      <td style="width:18%;" data-label="Penyedia">${k.penyedia}</td>
+      <td class="num" style="width:14%;" data-label="Nilai Kontrak">${k.nilai || '–'}</td>
+      <td style="text-align:center; width:12%;" data-label="Status">${statusPill(k.status)}</td>
       <td style="text-align:center; width:12%;">
         <button id="btnStatusDetail${idx}" onclick="toggleStatusDetail(${idx})" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">▼ Detail</button>
       </td>
@@ -614,7 +653,7 @@ function openStatusListOverlay(statusFilter, cardLabel){
       <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
     </div>
     <div class="scroll-table" style="max-height:65vh;">
-      <table style="table-layout:fixed;">
+      <table style="table-layout:fixed;" class="responsive-stack">
         <thead>
           <tr>
             <th style="width:15%;">No Kontrak</th>
@@ -916,15 +955,15 @@ function renderBayarTablePage(){
     const isVip = r.arp !== null && isEffectivelyZero(r.arp);
     let pill;
     if(sudahBayar) pill = '<span class="status-pill paid">Terbayar</span>';
-    else if(isVip) pill = '<span class="status-pill vip">Proses VIP</span>';
+    else if(isVip) pill = '<span class="status-pill vip">VIP</span>';
     else pill = '<span class="status-pill unpaid">Belum Terbayar</span>';
     return `
     <tr>
-      <td>${r.judul}</td>
-      <td>${r.penyedia}</td>
-      <td class="num">${r.rp !== null ? r.rp.toFixed(2) + '%' : '–'}</td>
-      <td>${formatRp(r.rrp)}</td>
-      <td style="text-align:center;">${pill}</td>
+      <td data-label="Judul kontrak">${r.judul}</td>
+      <td data-label="Penyedia">${r.penyedia}</td>
+      <td class="num" data-label="Rencana %">${r.rp !== null ? r.rp.toFixed(2) + '%' : '–'}</td>
+      <td data-label="Rencana Rp">${formatRp(r.rrp)}</td>
+      <td style="text-align:center;" data-label="Status Bayar">${pill}</td>
     </tr>`;
   }).join('');
 
@@ -1263,11 +1302,11 @@ function openTargetKinerjaOverlay(){
     const diffText = diff === null ? '–' : (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
     return `
     <tr>
-      <td style="min-width:260px;">${r.judul}</td>
-      <td style="min-width:180px;">${r.penyedia}</td>
-      <td class="num">${r.plan !== null ? r.plan.toFixed(2)+'%' : '–'}</td>
-      <td class="num">${r.actual !== null ? r.actual.toFixed(2)+'%' : '–'}</td>
-      <td class="num" style="color:${diffColor}; font-weight:600;">${diffText}</td>
+      <td data-label="Judul kontrak">${r.judul}</td>
+      <td data-label="Penyedia">${r.penyedia}</td>
+      <td class="num" data-label="Plan %">${r.plan !== null ? r.plan.toFixed(2)+'%' : '–'}</td>
+      <td class="num" data-label="Actual %">${r.actual !== null ? r.actual.toFixed(2)+'%' : '–'}</td>
+      <td class="num" style="color:${diffColor}; font-weight:600;" data-label="Selisih">${diffText}</td>
       <td style="text-align:center;">
         <button id="btnFisikDetail${idx}" onclick="toggleFisikDetail(${idx})" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">▼ Detail</button>
       </td>
@@ -1288,7 +1327,7 @@ function openTargetKinerjaOverlay(){
       <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
     </div>
     <div class="scroll-table" style="max-height:65vh;">
-      <table>
+      <table class="responsive-stack">
         <thead>
           <tr>
             <th>Judul kontrak</th>
