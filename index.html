@@ -207,6 +207,11 @@
   /* Jaring pengaman tambahan: apapun kontennya, tidak boleh ada yang melebihi lebar layar */
   img, canvas, table, .card, .card-soft{ max-width:100%; }
 
+  /* Status tersembunyi baris accordion (Detail Bulanan / Detail kontrak) — dipakai lewat
+     classList.toggle di JS, bukan inline style, supaya tidak bentrok dengan aturan
+     display:block di mode responsive-stack (layar HP) maupun tabel biasa (desktop). */
+  .detail-row-hidden{ display:none !important; }
+
   /* ===== Tabel → kartu di layar sempit (HP) =====
      Tabel dengan banyak kolom (misal Status Kontrak, Rencana vs Realisasi Bayar) akan
      terlihat sangat sempit & teksnya terpotong huruf-per-huruf kalau dipaksa tetap
@@ -215,10 +220,16 @@
      atas nilainya (bukan berdampingan), jadi tidak perlu scroll horizontal sama sekali. */
   @media (max-width:680px){
     table.responsive-stack thead{ display:none !important; }
-    table.responsive-stack, table.responsive-stack tbody, table.responsive-stack tr,
+    table.responsive-stack, table.responsive-stack tbody,
     table.responsive-stack td{
       display:block !important; width:100% !important; box-sizing:border-box;
     }
+    /* PENTING: tr TIDAK dipaksa !important, supaya baris accordion (Detail Bulanan / Detail
+       kontrak) yang disembunyikan lewat inline style="display:none" oleh JS tetap bisa
+       ditutup/dibuka normal. Class selector di bawah ini sudah cukup mengalahkan default
+       browser (tr{display:table-row}) tanpa !important, jadi begitu JS membuka baris (inline
+       style dikosongkan), baris otomatis jatuh balik ke aturan ini (stack ke bawah). */
+    table.responsive-stack tr{ display:block; width:100%; }
     table.responsive-stack tbody tr{
       margin-bottom:10px; border:1px solid var(--line); border-radius:10px;
       padding:10px 12px; background:var(--white); overflow:hidden;
@@ -637,7 +648,7 @@ function openStatusListOverlay(statusFilter, cardLabel){
         <button id="btnStatusDetail${idx}" onclick="toggleStatusDetail(${idx})" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">▼ Detail</button>
       </td>
     </tr>
-    <tr id="statusDetailRow${idx}" style="display:none;">
+    <tr id="statusDetailRow${idx}" class="detail-row-hidden">
       <td colspan="6" style="padding:14px 18px; background:var(--surface);">
         ${buildKontrakDetailContent(k)}
       </td>
@@ -673,9 +684,8 @@ function openStatusListOverlay(statusFilter, cardLabel){
 function toggleStatusDetail(idx){
   const row = document.getElementById('statusDetailRow' + idx);
   const btn = document.getElementById('btnStatusDetail' + idx);
-  const isHidden = row.style.display === 'none' || row.style.display === '';
-  row.style.display = isHidden ? 'table-row' : 'none';
-  btn.textContent = isHidden ? '▲ Tutup' : '▼ Detail';
+  const nowHidden = row.classList.toggle('detail-row-hidden');
+  btn.textContent = nowHidden ? '▼ Detail' : '▲ Tutup';
 }
 
 /* ============== RENDER: STATUS KONTRAK ============== */
@@ -1268,18 +1278,38 @@ async function screenshotElement(elementId, btnId, iconId, defaultLabel, filenam
 // Tabel mini per bulan (baris 1 = Plan, baris 2 = Actual) — dipakai di modal Target Kinerja
 // maupun di kartu Detail Kontrak (dropdown & accordion)
 function buildMonthlyFisikTable(planArr, actualArr){
-  const planCells = planArr.map(v => `<td class="num">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`).join('');
-  const actualCells = actualArr.map(v => `<td class="num">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`).join('');
-  const monthHeaders = BULAN_SINGKAT.map(b => `<th style="text-align:right; font-size:10.5px;">${b}</th>`).join('');
+  const planCells = planArr.map(v =>
+    `<td class="num" style="background:#EFF6FF; border-right:1px solid var(--line-soft); padding:8px 10px; white-space:nowrap;">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`
+  ).join('');
+  const actualCells = actualArr.map(v =>
+    `<td class="num" style="background:#F0FDF4; border-right:1px solid var(--line-soft); padding:8px 10px; white-space:nowrap;">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`
+  ).join('');
+  const monthHeaders = BULAN_SINGKAT.map(b =>
+    `<th style="text-align:center; font-size:11.5px; min-width:62px; border-right:1px solid rgba(255,255,255,.2);">${b}</th>`
+  ).join('');
   return `
-    <div style="overflow-x:auto; padding:10px 4px;">
-      <table style="min-width:640px;">
-        <thead><tr><th style="width:90px;">Bulan</th>${monthHeaders}</tr></thead>
-        <tbody>
-          <tr><td style="font-weight:600; color:#1E40AF;">Plan</td>${planCells}</tr>
-          <tr><td style="font-weight:600; color:#15803D;">Actual</td>${actualCells}</tr>
-        </tbody>
-      </table>
+    <div style="margin-top:4px;">
+      <p style="font-size:10.5px; color:var(--ink-3); margin:0 0 6px;">◄ Geser ke samping untuk lihat bulan lainnya ►</p>
+      <div style="overflow-x:auto; border:1px solid var(--line); border-radius:8px;">
+        <table style="min-width:700px; border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="width:84px; position:sticky; left:0; text-align:left; padding:8px 10px; border-right:2px solid rgba(255,255,255,.3); z-index:1;">Bulan</th>
+              ${monthHeaders}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:700; color:#1E40AF; position:sticky; left:0; background:#EFF6FF; padding:8px 10px; border-right:2px solid var(--line); z-index:1;">Plan</td>
+              ${planCells}
+            </tr>
+            <tr>
+              <td style="font-weight:700; color:#15803D; position:sticky; left:0; background:#F0FDF4; padding:8px 10px; border-right:2px solid var(--line); z-index:1;">Actual</td>
+              ${actualCells}
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>`;
 }
 
@@ -1311,7 +1341,7 @@ function openTargetKinerjaOverlay(){
         <button id="btnFisikDetail${idx}" onclick="toggleFisikDetail(${idx})" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">▼ Detail</button>
       </td>
     </tr>
-    <tr id="fisikDetailRow${idx}" style="display:none;">
+    <tr id="fisikDetailRow${idx}" class="detail-row-hidden">
       <td colspan="6" style="padding:0; background:var(--surface);">
         ${buildMonthlyFisikTable(r.planBulanan, r.actualBulanan)}
       </td>
@@ -1356,9 +1386,8 @@ function openTargetKinerjaOverlay(){
 function toggleFisikDetail(idx){
   const row = document.getElementById('fisikDetailRow' + idx);
   const btn = document.getElementById('btnFisikDetail' + idx);
-  const isHidden = row.style.display === 'none' || row.style.display === '';
-  row.style.display = isHidden ? 'table-row' : 'none';
-  btn.textContent = isHidden ? '▲ Tutup' : '▼ Detail';
+  const nowHidden = row.classList.toggle('detail-row-hidden');
+  btn.textContent = nowHidden ? '▼ Detail' : '▲ Tutup';
 }
 
 
