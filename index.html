@@ -217,42 +217,45 @@
      terlihat sangat sempit & teksnya terpotong huruf-per-huruf kalau dipaksa tetap
      berbentuk tabel biasa di layar HP. Solusinya: tabel dengan class "responsive-stack"
      berubah jadi tumpukan kartu — tiap baris data jadi 1 kartu, label kolom tampil di
-     atas nilainya (bukan berdampingan), jadi tidak perlu scroll horizontal sama sekali. */
+     atas nilainya (bukan berdampingan), jadi tidak perlu scroll horizontal sama sekali.
+
+     PENTING: semua selector di bawah pakai kombinator turunan-langsung (">"), BUKAN
+     spasi. Beberapa baris accordion (Detail Bulanan / Detail kontrak) berisi tabel lain
+     yang bersarang di dalamnya (misal tabel Progres Fisik Bulanan). Kalau pakai selector
+     spasi (turunan biasa), aturan ini akan ikut menembus ke tabel bersarang itu juga dan
+     merusak tampilannya — padahal harusnya cuma berlaku ke tabel terluar saja. */
   @media (max-width:680px){
-    table.responsive-stack thead{ display:none !important; }
-    table.responsive-stack, table.responsive-stack tbody,
-    table.responsive-stack td{
-      display:block !important; width:100% !important; box-sizing:border-box;
-    }
+    table.responsive-stack > thead{ display:none !important; }
+    table.responsive-stack{ display:block !important; width:100% !important; box-sizing:border-box; }
+    table.responsive-stack > tbody{ display:block !important; width:100% !important; box-sizing:border-box; }
     /* PENTING: tr TIDAK dipaksa !important, supaya baris accordion (Detail Bulanan / Detail
-       kontrak) yang disembunyikan lewat inline style="display:none" oleh JS tetap bisa
-       ditutup/dibuka normal. Class selector di bawah ini sudah cukup mengalahkan default
-       browser (tr{display:table-row}) tanpa !important, jadi begitu JS membuka baris (inline
-       style dikosongkan), baris otomatis jatuh balik ke aturan ini (stack ke bawah). */
-    table.responsive-stack tr{ display:block; width:100%; }
-    table.responsive-stack tbody tr{
+       kontrak) yang disembunyikan lewat class "detail-row-hidden" tetap bisa ditutup/dibuka
+       normal (lihat aturan .detail-row-hidden di atas, yang pakai !important sendiri). */
+    table.responsive-stack > tbody > tr{ display:block; width:100%; }
+    table.responsive-stack > tbody > tr{
       margin-bottom:10px; border:1px solid var(--line); border-radius:10px;
       padding:10px 12px; background:var(--white); overflow:hidden;
     }
-    table.responsive-stack tbody tr[id^="fisikDetailRow"],
-    table.responsive-stack tbody tr[id^="statusDetailRow"]{
+    table.responsive-stack > tbody > tr[id^="fisikDetailRow"],
+    table.responsive-stack > tbody > tr[id^="statusDetailRow"]{
       border:none; padding:0; margin-bottom:10px; background:transparent;
     }
-    table.responsive-stack td{
+    table.responsive-stack > tbody > tr > td{
+      display:block !important; width:100% !important; box-sizing:border-box;
       text-align:left !important; padding:5px 0 !important; border:none !important;
       white-space:normal !important; word-break:break-word; min-width:0 !important;
     }
-    table.responsive-stack td[data-label]::before{
+    table.responsive-stack > tbody > tr > td[data-label]::before{
       content: attr(data-label);
       display:block; font-size:10px; font-weight:700; color:var(--ink-3);
       text-transform:uppercase; letter-spacing:.02em; margin-bottom:2px;
     }
-    table.responsive-stack td[colspan]{ padding:8px 0 0 !important; }
-    table.responsive-stack tfoot td{
+    table.responsive-stack > tbody > tr > td[colspan]{ padding:8px 0 0 !important; }
+    table.responsive-stack > tfoot > tr > td{
       display:block !important; width:100% !important; text-align:left !important;
       padding:6px 0 !important; box-sizing:border-box;
     }
-    table.responsive-stack tfoot tr{
+    table.responsive-stack > tfoot > tr{
       display:block; border-radius:10px; overflow:hidden; padding:10px 12px;
     }
   }
