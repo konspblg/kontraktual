@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="apple-touch-icon" href="icon_kontraktual.png">
+<link rel="icon" type="image/png" href="icon_kontraktual.png">
+<title>Dashboard Monitoring Kontrak AI — UPT Probolinggo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5.1.1/index.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --teal:#00A19A;
+    --teal-dark:#00736D;
+    --teal-soft:#E0F7F5;
+    --yellow:#FDB913;
+    --yellow-soft:#FFF8E1;
+    --navy:#1A3A52;
+    --ink:#0F172A;
+    --ink-2:#475569;
+    --ink-3:#94A3B8;
+    --surface:#F8FAFC;
+    --white:#FFFFFF;
+    --line:#CBD5E1;
+    --line-soft:#E2E8F0;
+    --st-gray-bg:#F1F5F9;    --st-gray-fg:#475569;
+    --st-blue-bg:#DBEAFE;    --st-blue-fg:#1E40AF;
+    --st-amber-bg:#FEF3C7;   --st-amber-fg:#92400E;
+    --st-teal-bg:#CCFBF1;    --st-teal-fg:#115E59;
+    --st-green-bg:#D1FAE5;   --st-green-fg:#065F46;
+    --st-red-bg:#FEE2E2;     --st-red-fg:#991B1B;
+    --st-violet-bg:#EDE9FE;  --st-violet-fg:#6D28D9;
+    --radius:8px;
+    --shadow-lg:0 20px 40px -8px rgba(15,23,42,0.25), 0 8px 16px -8px rgba(15,23,42,0.15);
+  }
+
+  *{ box-sizing:border-box; }
+
+  html{ overflow-x:hidden; }
+  body{
+    margin:0;
+    font-family:'Geist','IBM Plex Sans',sans-serif;
+    background:#DCE3EA;
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    width:100%;
+  }
+
+  .wrap{ max-width:1100px; margin:0 auto; padding:0 20px; }
+
+  .paper{
+    max-width:1100px;
+    margin:28px auto 60px;
+    background:var(--white);
+    border-radius:18px;
+    box-shadow:0 1px 2px rgba(15,23,42,0.06), 0 24px 48px -20px rgba(15,23,42,0.28);
+    padding:36px 40px 44px;
+  }
+
+  header.topbar{
+    background:linear-gradient(135deg, var(--navy) 0%, #0F2A3D 100%);
+    padding:22px 0;
+  }
+  header.topbar .wrap{ padding-bottom:0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  header.topbar h1{ font-size:20px; font-weight:600; color:var(--white); margin:0; letter-spacing:-0.01em; }
+  header.topbar p{ font-size:12px; color:var(--teal-soft); margin:2px 0 0; }
+  .pln-badge{ display:flex; align-items:center; gap:8px; }
+  .pln-badge span{ background:var(--teal); color:var(--white); font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px; }
+
+  select, input, button{
+    font-family:inherit;
+    font-size:13px;
+    padding:8px 10px;
+    border-radius:var(--radius);
+    border:1px solid var(--line);
+    background:var(--white);
+    color:var(--ink);
+    transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+  }
+  select optgroup{ font-weight:700; color:var(--navy); font-style:normal; }
+  select option{ font-weight:400; color:var(--ink); }
+  select:hover, input:hover{ border-color:var(--teal); }
+  select:focus, input:focus, button:focus{ outline:none; border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-soft); }
+  button{ cursor:pointer; }
+  button:hover{ background:var(--surface); }
+  button:disabled{ opacity:.4; cursor:not-allowed; }
+  button:disabled:hover{ background:var(--white); }
+
+  .section-title{ display:flex; align-items:center; gap:8px; font-size:15px; font-weight:600; color:var(--navy); margin:0 0 12px; }
+  .section-title .dot{ width:8px; height:8px; border-radius:50%; background:var(--teal); flex-shrink:0; }
+
+  .card{ background:var(--white); border:1px solid var(--line-soft); border-radius:12px; padding:16px 20px; transition:box-shadow .2s ease, transform .2s ease; }
+  .card-soft{ background:var(--surface); border-radius:var(--radius); padding:14px 16px; transition:box-shadow .2s ease, transform .2s ease; }
+  .card-soft:hover, .card:hover{ box-shadow:0 8px 20px -8px rgba(15,23,42,0.18); transform:translateY(-1px); }
+
+  .grid-4{ display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:12px; }
+  .grid-2{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:16px; }
+
+  .kpi-label{ font-size:11px; font-weight:600; color:var(--ink-3); text-transform:uppercase; letter-spacing:.03em; margin:0 0 6px; }
+  .kpi-value{ font-size:22px; font-weight:700; margin:0; color:var(--ink); }
+
+  .pill{ display:inline-block; font-size:11px; font-weight:600; padding:3px 10px; border-radius:999px; white-space:nowrap; }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  th{ text-align:left; padding:10px 10px; color:var(--white); font-weight:600; background:var(--navy); }
+  .scroll-table th{ position:sticky; top:0; z-index:1; }
+  td{ padding:9px 10px; border-bottom:1px solid var(--line-soft); vertical-align:top; overflow-wrap:break-word; word-break:break-word; }
+  tbody tr:nth-child(even) td{ background:var(--surface); }
+  tbody tr:hover td{ background:var(--teal-soft) !important; }
+  .num{ text-align:right; white-space:nowrap; }
+  .scroll-table{ max-height:420px; overflow:auto; border:1px solid var(--line-soft); border-radius:var(--radius); }
+  .table-expand{ border:1px solid var(--line-soft); border-radius:var(--radius); overflow:visible; }
+  tfoot td{ background:var(--navy); color:var(--white); font-weight:700; border-bottom:none; }
+  .scroll-table tfoot td{ position:sticky; bottom:0; }
+  .status-pill{ display:inline-block; font-size:11.5px; font-weight:700; padding:5px 14px; border-radius:6px; box-shadow:0 1px 2px rgba(15,23,42,0.12); white-space:nowrap; }
+  .status-pill.paid{ background:#DCFCE7; color:#15803D; }
+  .status-pill.unpaid{ background:#FFEDD5; color:#C2410C; }
+  .status-pill.vip{ background:var(--st-violet-bg); color:var(--st-violet-fg); }
+
+  .chart-wrap{ position:relative; width:100%; height:260px; }
+  .legend{ display:flex; gap:16px; font-size:12px; color:var(--ink-2); margin-top:6px; }
+  .legend span{ display:flex; align-items:center; gap:4px; }
+  .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+  .overlay{
+    display:flex;
+    position:fixed; inset:0;
+    background:rgba(15,23,42,0.55);
+    z-index:100;
+    align-items:flex-start;
+    justify-content:center;
+    padding:40px 16px;
+    overflow-y:auto;
+    opacity:0;
+    visibility:hidden;
+    transition:opacity .2s ease;
+  }
+  .overlay.show{ opacity:1; visibility:visible; }
+  .overlay-card{
+    background:var(--white);
+    border-radius:14px;
+    box-shadow:var(--shadow-lg);
+    max-width:520px;
+    width:100%;
+    padding:20px 24px 24px;
+    transform:translateY(-12px) scale(.97);
+    transition:transform .25s cubic-bezier(.2,.8,.2,1), max-width .2s ease;
+  }
+  .overlay-card.wide{ max-width:1050px; }
+  .overlay.show .overlay-card{ transform:translateY(0) scale(1); }
+  .overlay-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .overlay-close{ border:none; background:var(--surface); width:30px; height:30px; border-radius:50%; font-size:16px; line-height:1; flex-shrink:0; padding:0; transition:background-color .15s ease, transform .15s ease; }
+  .overlay-close:hover{ background:var(--st-red-bg); color:var(--st-red-fg); transform:rotate(90deg); }
+  .overlay-group-title{ font-size:11px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:.03em; margin:16px 0 6px; }
+  .kv{ width:100%; font-size:12.5px; }
+  .kv td{ padding:4px 0; border:none; }
+  .kv td:first-child{ color:var(--ink-2); }
+  .kv td:last-child{ text-align:right; font-weight:500; }
+
+  .list-item{ padding:10px 0; border-bottom:1px solid var(--line-soft); transition:background-color .15s ease; }
+  .list-item:last-child{ border-bottom:none; }
+  .list-item .top{ font-size:12px; color:var(--ink-2); margin-bottom:2px; }
+  .list-item .mid{ font-size:13px; margin-bottom:4px; }
+  .list-item .bottom{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  .list-item .bottom > span{ min-width:0; overflow-wrap:break-word; }
+
+  /* ===== Search dropdown (Detail Kontrak) ===== */
+  .search-dropdown{
+    position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:20;
+    background:var(--white); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow-lg); max-height:340px; overflow-y:auto;
+  }
+  .search-group-label{
+    font-size:10px; font-weight:700; color:var(--ink-3); text-transform:uppercase;
+    letter-spacing:.03em; padding:8px 12px 4px; background:var(--surface);
+    position:sticky; top:0;
+  }
+  .search-result-item{ padding:9px 12px; cursor:pointer; border-bottom:1px solid var(--line-soft); }
+  .search-result-item:hover{ background:var(--teal-soft); }
+  .search-result-item:last-child{ border-bottom:none; }
+  .search-empty, .search-more{ padding:12px; font-size:12.5px; color:var(--ink-3); text-align:center; }
+
+  .state-msg{ text-align:center; padding:60px 20px; color:var(--ink-2); font-size:14px; }
+  .state-msg.error{ color:var(--st-red-fg); }
+
+  .filterbar{ display:flex; gap:8px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+  section{ margin-bottom:28px; }
+
+  @media (max-width:600px){
+    .kpi-value{ font-size:18px; }
+    header.topbar h1{ font-size:16px; }
+    .paper{
+      margin:14px auto 30px;
+      border-radius:12px;
+      padding:20px 16px 26px;
+    }
+    .wrap{ padding:0 14px; }
+    .overlay{ padding:20px 10px; }
+    .overlay-card{ padding:18px 16px 20px; }
+    table{ font-size:11.5px; }
+    th, td{ padding:7px 6px; }
+  }
+
+  /* Jaring pengaman tambahan: apapun kontennya, tidak boleh ada yang melebihi lebar layar */
+  img, canvas, table, .card, .card-soft{ max-width:100%; }
+
+  /* Status tersembunyi baris accordion (Detail Bulanan / Detail kontrak) — dipakai lewat
+     classList.toggle di JS, bukan inline style, supaya tidak bentrok dengan aturan
+     display:block di mode responsive-stack (layar HP) maupun tabel biasa (desktop). */
+  .detail-row-hidden{ display:none !important; }
+
+  /* ===== Tabel → kartu di layar sempit (HP) =====
+     Tabel dengan banyak kolom (misal Status Kontrak, Rencana vs Realisasi Bayar) akan
+     terlihat sangat sempit & teksnya terpotong huruf-per-huruf kalau dipaksa tetap
+     berbentuk tabel biasa di layar HP. Solusinya: tabel dengan class "responsive-stack"
+     berubah jadi tumpukan kartu — tiap baris data jadi 1 kartu, label kolom tampil di
+     atas nilainya (bukan berdampingan), jadi tidak perlu scroll horizontal sama sekali.
+
+     PENTING: semua selector di bawah pakai kombinator turunan-langsung (">"), BUKAN
+     spasi. Beberapa baris accordion (Detail Bulanan / Detail kontrak) berisi tabel lain
+     yang bersarang di dalamnya (misal tabel Progres Fisik Bulanan). Kalau pakai selector
+     spasi (turunan biasa), aturan ini akan ikut menembus ke tabel bersarang itu juga dan
+     merusak tampilannya — padahal harusnya cuma berlaku ke tabel terluar saja. */
+  @media (max-width:680px){
+    table.responsive-stack > thead{ display:none !important; }
+    table.responsive-stack{ display:block !important; width:100% !important; box-sizing:border-box; }
+    table.responsive-stack > tbody{ display:block !important; width:100% !important; box-sizing:border-box; }
+    /* PENTING: tr TIDAK dipaksa !important, supaya baris accordion (Detail Bulanan / Detail
+       kontrak) yang disembunyikan lewat class "detail-row-hidden" tetap bisa ditutup/dibuka
+       normal (lihat aturan .detail-row-hidden di atas, yang pakai !important sendiri). */
+    table.responsive-stack > tbody > tr{ display:block; width:100%; }
+    table.responsive-stack > tbody > tr{
+      margin-bottom:10px; border:1px solid var(--line); border-radius:10px;
+      padding:10px 12px; background:var(--white); overflow:hidden;
+    }
+    table.responsive-stack > tbody > tr[id^="fisikDetailRow"],
+    table.responsive-stack > tbody > tr[id^="statusDetailRow"]{
+      border:none; padding:0; margin-bottom:10px; background:transparent;
+    }
+    table.responsive-stack > tbody > tr > td{
+      display:block !important; width:100% !important; box-sizing:border-box;
+      text-align:left !important; padding:5px 0 !important; border:none !important;
+      white-space:normal !important; word-break:break-word; min-width:0 !important;
+    }
+    table.responsive-stack > tbody > tr > td[data-label]::before{
+      content: attr(data-label);
+      display:block; font-size:10px; font-weight:700; color:var(--ink-3);
+      text-transform:uppercase; letter-spacing:.02em; margin-bottom:2px;
+    }
+    table.responsive-stack > tbody > tr > td[colspan]{ padding:8px 0 0 !important; }
+    table.responsive-stack > tfoot > tr > td{
+      display:block !important; width:100% !important; text-align:left !important;
+      padding:6px 0 !important; box-sizing:border-box;
+    }
+    table.responsive-stack > tfoot > tr{
+      display:block; border-radius:10px; overflow:hidden; padding:10px 12px;
+    }
+  }
+
+  /* ===== Login modal ===== */
+  #loginOverlay{
+    position:fixed; inset:0; z-index:200;
+    background:linear-gradient(135deg, var(--navy) 0%, #0F2A3D 100%);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  #loginOverlay.hide{ display:none; }
+  .login-card{
+    background:var(--white);
+    border-radius:16px;
+    box-shadow:var(--shadow-lg);
+    max-width:360px;
+    width:100%;
+    padding:32px 28px;
+    text-align:center;
+  }
+  .login-card .badge{
+    width:48px; height:48px; border-radius:50%;
+    background:var(--teal-soft); color:var(--teal-dark);
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; margin:0 auto 16px;
+  }
+  .login-card h2{ font-size:16px; font-weight:600; color:var(--navy); margin:0 0 4px; }
+  .login-card p.desc{ font-size:12px; color:var(--ink-2); margin:0 0 20px; }
+  .login-card label{
+    display:block; text-align:left; font-size:11px; font-weight:700;
+    color:var(--ink-3); text-transform:uppercase; letter-spacing:.03em; margin-bottom:6px;
+  }
+  #loginPassword{ width:100%; margin-bottom:6px; }
+  .login-error{ font-size:12px; color:var(--st-red-fg); min-height:16px; text-align:left; margin-bottom:10px; }
+  #loginSubmitBtn{
+    width:100%; background:var(--teal); color:var(--white); border:none;
+    padding:10px; font-weight:600; font-size:13px; border-radius:var(--radius);
+  }
+  #loginSubmitBtn:hover{ background:var(--teal-dark); }
+  .login-shake{ animation:shakeX .3s; }
+  @keyframes shakeX{
+    0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-6px); }
+    75%{ transform:translateX(6px); }
+  }
+</style>
+</head>
+<body>
+
+<div id="loginOverlay">
+  <div class="login-card" id="loginCard">
+    <div class="badge">🔒</div>
+    <h2>Dashboard Monitoring Kontrak AI</h2>
+    <p class="desc">UPT Probolinggo · masukkan akses untuk melanjutkan</p>
+    <form id="loginForm">
+      <label for="loginPassword">AKSES MASUK</label>
+      <input type="password" id="loginPassword" autocomplete="off" placeholder="Masukkan password" autofocus>
+      <p class="login-error" id="loginError"></p>
+      <button type="submit" id="loginSubmitBtn">Masuk</button>
+    </form>
+  </div>
+</div>
+
+<header class="topbar">
+  <div class="wrap">
+    <div>
+      <h1>Dashboard Monitoring Kontrak AI</h1>
+      <p>UPT Probolinggo · data langsung dari Google Sheets</p>
+    </div>
+  </div>
+</header>
+
+<div class="paper">
+
+  <div id="loadingState" class="state-msg">Memuat data dari Google Sheets...</div>
+  <div id="errorState" class="state-msg error" style="display:none;"></div>
+
+  <div id="dashboardContent" style="display:none;">
+
+    <div class="filterbar">
+      <select id="tahunSel"></select>
+    </div>
+
+    <section>
+      <p class="section-title"><span class="dot"></span>Status kontrak</p>
+      <div id="statusCards" class="grid-4"></div>
+    </section>
+
+    <section>
+      <div class="card">
+        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Detail kontrak</p>
+        <div id="kontrakSearchWrap" style="position:relative;">
+          <input type="text" id="kontrakSearchInput" placeholder="Ketik judul, no. kontrak, atau penyedia..." autocomplete="off" style="width:100%;">
+          <div id="kontrakSearchResults" class="search-dropdown" style="display:none;"></div>
+        </div>
+        <p style="font-size:12px; color:var(--ink-3); margin:8px 0 0;">Ketik kata kunci, hasil langsung tersaring — klik salah satu untuk lihat detail.</p>
+      </div>
+    </section>
+
+    <section>
+      <p class="section-title" style="justify-content:space-between;">
+        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar bulan ini</span>
+        <button id="btnScreenshotBayarTable" title="Screenshot tabel (salin ke clipboard)" style="font-size:15px; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0;"><span id="screenshotBayarIcon">📷</span></button>
+      </p>
+      <div class="filterbar" style="margin-bottom:12px;">
+        <select id="bulanSel"></select>
+      </div>
+      <div class="table-expand" id="bayarTableCaptureArea">
+        <table id="bayarTable" class="responsive-stack">
+          <thead>
+            <tr>
+              <th style="width:32%;">Judul kontrak</th>
+              <th style="width:20%;">Penyedia</th>
+              <th class="num" style="width:12%;">Rencana %</th>
+              <th style="width:18%;">Rencana Rp</th>
+              <th style="text-align:center; width:18%;">Status Bayar</th>
+            </tr>
+          </thead>
+          <tbody id="bayarTableBody"></tbody>
+          <tfoot id="bayarTableFoot"></tfoot>
+        </table>
+      </div>
+      <div id="bayarTablePagination" style="display:flex; align-items:center; justify-content:space-between; margin-top:10px; flex-wrap:wrap; gap:8px;"></div>
+    </section>
+
+    <section>
+      <p class="section-title" style="justify-content:space-between;">
+        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar (tren bulanan)</span>
+        <button id="btnScreenshotBayarChart" title="Screenshot chart (salin ke clipboard)" style="font-size:15px; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0;"><span id="screenshotBayarChartIcon">📷</span></button>
+      </p>
+      <div id="bayarChartCaptureArea" style="background:var(--white); padding:4px;">
+        <div class="grid-4" style="margin-bottom:14px;">
+          <div class="card-soft">
+            <p class="kpi-label">Rencana bayar tahunan</p>
+            <p class="kpi-value" id="kpiRencanaTahunan" style="font-size:19px; word-break:break-word;">–</p>
+          </div>
+          <div class="card-soft">
+            <p class="kpi-label">Realisasi sampai saat ini</p>
+            <p class="kpi-value" id="kpiRealisasiSaatIni" style="font-size:19px; word-break:break-word;">–</p>
+            <p style="font-size:11px; color:var(--ink-2); margin:4px 0 0;" id="kpiRealisasiPct"></p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="bayarChart" role="img" aria-label="Grafik batang rencana vs realisasi pembayaran Januari sampai Desember"></canvas></div>
+        <div class="legend"><span><i style="background:#2a78d6;"></i>Rencana</span><span><i style="background:#1baf7a;"></i>Realisasi</span></div>
+      </div>
+    </section>
+
+    <section>
+      <p class="section-title" style="justify-content:space-between;">
+        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi progres fisik (Target Kinerja)</span>
+        <button id="btnLihatTargetKinerja" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal);">Lihat Target Kinerja</button>
+      </p>
+      <div class="chart-wrap"><canvas id="fisikChart" role="img" aria-label="Grafik garis rencana vs realisasi progres fisik Target Kinerja, Januari sampai Desember, dalam persen"></canvas></div>
+      <div class="legend"><span><i style="background:#2a78d6;"></i>Rencana</span><span><i style="background:#1baf7a;"></i>Realisasi</span></div>
+    </section>
+
+    <section class="grid-2">
+      <div class="card">
+        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status PIC</p>
+        <select id="picSel" style="width:100%;"><option value="">Pilih PIC...</option></select>
+      </div>
+      <div class="card">
+        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status penyedia</p>
+        <select id="penyediaSel" style="width:100%;"><option value="">Pilih penyedia...</option></select>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div id="overlay" class="overlay">
+  <div class="overlay-card" id="overlayCard"></div>
+</div>
+
+<script>
+/* ============== KONFIGURASI ============== */
+const SHEET_ID = '1OLvF-EFqSZZIwZRK4T3b8VyXLM53OW42GoCzbzasgjI';
+const GID = '799877147';
+const HEADER_ROWS = 3; // baris group header + bulan header + baris total, diberitahukan eksplisit ke gviz lewat parameter headers=3 di URL
+
+// Peta indeks kolom (0-based) sesuai struktur sheet MONITORING
+const IDX = {
+  unit:0, unitPelaksana:1, noKontrak:2, noPrk:3, tahun:4, judul:5, nilai:6,
+  tglAwal:7, efektif:8, akhirKontrak:9, amandemenTerakhir:10, nilaiAmd:11, akhirAmd:12,
+  telahTerbayarRp:13, telahTerbayarPct:14, belumTerbayarRp:15, belumTerbayarPct:16,
+  status:18, bastI:19, durasiPemeliharaan:20, akhirPemeliharaan:21, bastII:22, bapBastII:23,
+  bankGaransi:24, akhirJampel:25, statusJampel:26, nilaiJampel:27, penyedia:28, keterangan:29,
+  planFisik:31, actualFisik:43, planBayarPct:55, actualBayarPct:67,
+  planBayarRp:79, actualBayarRp:91, pic:103
+};
+const BULAN_LABEL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const BULAN_SINGKAT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+const STATUS_COLOR = {
+  'Selesai': ['var(--st-green-bg)','var(--st-green-fg)'],
+  'Masa Pemeliharaan': ['var(--st-amber-bg)','var(--st-amber-fg)'],
+  'Konstruksi': ['var(--st-blue-bg)','var(--st-blue-fg)'],
+  'SELESAI KONTRAK': ['var(--st-green-bg)','var(--st-green-fg)'],
+  'EXPIRED': ['var(--st-red-bg)','var(--st-red-fg)'],
+  'AKTIF': ['var(--st-teal-bg)','var(--st-teal-fg)'],
+  'Non-Kontraktual': ['var(--st-violet-bg)','var(--st-violet-fg)']
+};
+function statusPill(text){
+  const key = (text||'').toString().trim();
+  const c = STATUS_COLOR[key] || ['var(--st-gray-bg)','var(--st-gray-fg)'];
+  return `<span class="pill" style="background:${c[0]}; color:${c[1]};">${key || '–'}</span>`;
+}
+
+let CONTRACTS = [];
+let TARGET_KINERJA_CONTRACTS = [];
+let LINK_KONTRAK_MAP = new Map(); // no_kontrak (trimmed) -> { linkKontrak, linkSebaran }
+
+// Sheet kedua: DETIL_KONTRAK — sumber link kontrak & link sebaran pekerjaan.
+// Kolom C (NOMOR KONTRAK) di sini sama persis dengan kolom C di sheet MONITORING,
+// dipakai sebagai kunci pencocokan. Sheet ini cuma punya 1 baris header (beda dari
+// MONITORING yang 3 baris), makanya loadSheet dipanggil dengan headerRows=1 di sini.
+const DETIL_KONTRAK_GID = '798316676';
+const DETIL_IDX = { noKontrak: 2, linkKontrak: 35, linkSebaran: 36 };
+
+async function loadLinkKontrakMap(){
+  try{
+    const json = await loadSheet(DETIL_KONTRAK_GID, 1);
+    const rows = json.table.rows;
+    const map = new Map();
+    const isValidUrl = v => v && v.trim() && v.trim().toUpperCase() !== 'N/A' && v.trim() !== '-';
+    rows.forEach(row => {
+      if(!row.c) return;
+      const noKontrak = cellFmt(row, DETIL_IDX.noKontrak).trim();
+      if(!noKontrak) return;
+      const linkKontrak = cellFmt(row, DETIL_IDX.linkKontrak).trim();
+      const linkSebaran = cellFmt(row, DETIL_IDX.linkSebaran).trim();
+      if(isValidUrl(linkKontrak) || isValidUrl(linkSebaran)){
+        map.set(noKontrak, {
+          linkKontrak: isValidUrl(linkKontrak) ? linkKontrak : null,
+          linkSebaran: isValidUrl(linkSebaran) ? linkSebaran : null
+        });
+      }
+    });
+    LINK_KONTRAK_MAP = map;
+    console.info('[Dashboard] Jumlah kontrak dengan link (dari DETIL_KONTRAK):', map.size);
+  }catch(err){
+    // Sheet link bersifat pelengkap — kalau gagal dimuat, dashboard utama tetap jalan
+    // tanpa tombol link, bukan dianggap error fatal.
+    console.warn('[Dashboard] Gagal memuat DETIL_KONTRAK (link kontrak/sebaran):', err);
+    LINK_KONTRAK_MAP = new Map();
+  }
+}
+
+/* ============== FETCH VIA GVIZ (JSONP) ============== */
+function loadSheet(gid, headerRows){
+  const hRows = headerRows !== undefined ? headerRows : HEADER_ROWS;
+  return new Promise((resolve, reject) => {
+    const cbName = 'gvizCb_' + Math.random().toString(36).slice(2);
+    window[cbName] = (json) => {
+      resolve(json);
+      delete window[cbName];
+      script.remove();
+    };
+    const script = document.createElement('script');
+    script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${gid}&headers=${hRows}&tqx=out:json;responseHandler:${cbName}`;
+    script.onerror = () => reject(new Error('Gagal memuat data. Pastikan spreadsheet sudah dibagikan sebagai "Siapa saja yang memiliki link".'));
+    document.body.appendChild(script);
+    setTimeout(() => reject(new Error('Waktu tunggu habis saat memuat data dari Google Sheets.')), 15000);
+  });
+}
+
+function cellRaw(row, idx){
+  const c = row.c && row.c[idx];
+  return c ? c.v : null;
+}
+function cellFmt(row, idx){
+  const c = row.c && row.c[idx];
+  if(!c) return '';
+  if(c.f !== undefined && c.f !== null && c.f !== '') return c.f;
+  if(c.v === null || c.v === undefined) return '';
+  return String(c.v);
+}
+function parseNumericString(s){
+  if(typeof s !== 'string') return null;
+  // buang semua karakter selain digit, koma, titik, dan minus (misal "Rp", "%", spasi)
+  let cleaned = s.replace(/[^0-9,.\-]/g, '').trim();
+  if(cleaned === '' || cleaned === '-') return null;
+  // format Rp di sheet ini pakai koma sebagai pemisah ribuan dan titik sebagai desimal (gaya Inggris)
+  cleaned = cleaned.replace(/,/g, '');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+function cellNum(row, idx){
+  const c = row.c && row.c[idx];
+  if(!c) return null;
+  if(typeof c.v === 'number') return c.v;
+  if(typeof c.v === 'string'){
+    const n = parseNumericString(c.v);
+    if(n !== null) return n;
+  }
+  if(typeof c.f === 'string'){
+    const n = parseNumericString(c.f);
+    if(n !== null) return n;
+  }
+  return null;
+}
+function cellPct(row, idx){
+  const c = row.c && row.c[idx];
+  if(!c) return null;
+  if(typeof c.v === 'number'){
+    return c.v <= 1.5 ? c.v * 100 : c.v;
+  }
+  if(typeof c.v === 'string'){
+    const n = parseNumericString(c.v);
+    if(n !== null) return n;
+  }
+  if(typeof c.f === 'string'){
+    const n = parseNumericString(c.f);
+    if(n !== null) return n;
+  }
+  return null;
+}
+
+function formatRp(num){
+  if(num === null || num === undefined || isNaN(num)) return '–';
+  return 'Rp' + Math.round(num).toLocaleString('id-ID');
+}
+function formatRpShort(num){
+  if(num === null || num === undefined || isNaN(num)) return '–';
+  if(Math.abs(num) >= 1e9) return 'Rp' + (num/1e9).toFixed(1).replace('.',',') + ' M';
+  if(Math.abs(num) >= 1e6) return 'Rp' + (num/1e6).toFixed(1).replace('.',',') + ' Jt';
+  return formatRp(num);
+}
+
+/* ============== PARSE DATA ============== */
+function parseContracts(json){
+  const rows = json.table.rows; // baris header sudah otomatis dibuang oleh gviz (parameter headers=3 di URL)
+  const out = [];
+  rows.forEach(row => {
+    if(!row.c) return;
+    const noKontrak = cellFmt(row, IDX.noKontrak).trim();
+    const judul = cellFmt(row, IDX.judul).trim();
+    if(!noKontrak && !judul) return; // lewati baris kosong / baris total / separator
+
+    const planFisik = [], actualFisik = [], planBayarPct = [], actualBayarPct = [], planBayarRp = [], actualBayarRp = [];
+    for(let m = 0; m < 12; m++){
+      planFisik.push(cellPct(row, IDX.planFisik + m));
+      actualFisik.push(cellPct(row, IDX.actualFisik + m));
+      planBayarPct.push(cellPct(row, IDX.planBayarPct + m));
+      actualBayarPct.push(cellPct(row, IDX.actualBayarPct + m));
+      planBayarRp.push(cellNum(row, IDX.planBayarRp + m));
+      actualBayarRp.push(cellNum(row, IDX.actualBayarRp + m));
+    }
+
+    out.push({
+      unit: cellFmt(row, IDX.unit),
+      unitPelaksana: cellFmt(row, IDX.unitPelaksana),
+      noKontrak, noPrk: cellFmt(row, IDX.noPrk),
+      tahun: cellFmt(row, IDX.tahun).trim(),
+      judul,
+      nilai: cellFmt(row, IDX.nilai),
+      nilaiNum: cellNum(row, IDX.nilai),
+      tglAwal: cellFmt(row, IDX.tglAwal), efektif: cellFmt(row, IDX.efektif), akhirKontrak: cellFmt(row, IDX.akhirKontrak),
+      amandemenTerakhir: cellFmt(row, IDX.amandemenTerakhir), nilaiAmd: cellFmt(row, IDX.nilaiAmd), akhirAmd: cellFmt(row, IDX.akhirAmd),
+      status: cellFmt(row, IDX.status).trim(),
+      bastI: cellFmt(row, IDX.bastI), durasiPemeliharaan: cellFmt(row, IDX.durasiPemeliharaan), akhirPemeliharaan: cellFmt(row, IDX.akhirPemeliharaan),
+      bastII: cellFmt(row, IDX.bastII), bapBastII: cellFmt(row, IDX.bapBastII),
+      bankGaransi: cellFmt(row, IDX.bankGaransi), akhirJampel: cellFmt(row, IDX.akhirJampel),
+      statusJampel: cellFmt(row, IDX.statusJampel).trim(), nilaiJampel: cellFmt(row, IDX.nilaiJampel),
+      penyedia: cellFmt(row, IDX.penyedia).trim(),
+      keterangan: cellFmt(row, IDX.keterangan),
+      pic: cellFmt(row, IDX.pic).trim(),
+      planFisik, actualFisik, planBayarPct, actualBayarPct, planBayarRp, actualBayarRp
+    });
+  });
+  return out;
+}
+
+function openStatusListOverlay(statusFilter, cardLabel){
+  const tahunSel = document.getElementById('tahunSel');
+  const tahun = tahunSel ? tahunSel.value : '__ALL__';
+  let filtered = tahun === '__ALL__' ? CONTRACTS : CONTRACTS.filter(k => k.tahun === tahun);
+  if(statusFilter !== null){
+    filtered = filtered.filter(k => k.status === statusFilter);
+  }
+
+  const rows = filtered.length ? filtered.map(k => {
+    const idx = CONTRACTS.indexOf(k);
+    return `
+    <tr>
+      <td style="width:15%;" data-label="No Kontrak">${k.noKontrak}</td>
+      <td style="width:29%;" data-label="Judul kontrak">${k.judul}</td>
+      <td style="width:18%;" data-label="Penyedia">${k.penyedia}</td>
+      <td class="num" style="width:14%;" data-label="Nilai Kontrak">${k.nilai || '–'}</td>
+      <td style="text-align:center; width:12%;" data-label="Status">${statusPill(k.status)}</td>
+      <td style="text-align:center; width:12%;">
+        <button id="btnStatusDetail${idx}" onclick="toggleStatusDetail(${idx})" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">▼ Detail</button>
+      </td>
+    </tr>
+    <tr id="statusDetailRow${idx}" class="detail-row-hidden">
+      <td colspan="6" style="padding:14px 18px; background:var(--surface);">
+        ${buildKontrakDetailContent(k)}
+      </td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada kontrak pada kategori ini.</td></tr>`;
+
+  openOverlay(`
+    <div class="overlay-head">
+      <div>
+        <p style="font-size:16px; font-weight:600; margin:0 0 2px;">${cardLabel}</p>
+        <p style="font-size:12px; color:var(--ink-2); margin:0;">${filtered.length} kontrak${tahun !== '__ALL__' ? ' · Tahun ' + tahun : ''} · klik "Detail" untuk lihat rincian</p>
+      </div>
+      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
+    </div>
+    <div class="scroll-table" style="max-height:65vh;">
+      <table style="table-layout:fixed;" class="responsive-stack">
+        <thead>
+          <tr>
+            <th style="width:15%;">No Kontrak</th>
+            <th style="width:29%;">Judul kontrak</th>
+            <th style="width:18%;">Penyedia</th>
+            <th class="num" style="width:14%;">Nilai Kontrak</th>
+            <th style="text-align:center; width:12%;">Status</th>
+            <th style="text-align:center; width:12%;">Detail</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `, true);
+}
+
+function toggleStatusDetail(idx){
+  const row = document.getElementById('statusDetailRow' + idx);
+  const btn = document.getElementById('btnStatusDetail' + idx);
+  const nowHidden = row.classList.toggle('detail-row-hidden');
+  btn.textContent = nowHidden ? '▼ Detail' : '▲ Tutup';
+}
+
+/* ============== RENDER: STATUS KONTRAK ============== */
+function renderStatus(tahun){
+  const filtered = tahun === '__ALL__' ? CONTRACTS : CONTRACTS.filter(k => k.tahun === tahun);
+  const n = filtered.length;
+  const count = { 'Selesai':0, 'Masa Pemeliharaan':0, 'Konstruksi':0, 'Non-Kontraktual':0 };
+  filtered.forEach(k => { if(count[k.status] !== undefined) count[k.status]++; });
+  const totalNilai = filtered.reduce((sum, k) => sum + (k.nilaiNum || 0), 0);
+
+  document.getElementById('statusCards').innerHTML = `
+    <div class="card-soft" style="background:var(--teal-soft); cursor:pointer;" onclick="openStatusListOverlay(null, 'Semua Kontrak')">
+      <p class="kpi-label" style="color:var(--teal-dark);">Jumlah kontrak (N)</p>
+      <p class="kpi-value" style="color:var(--teal-dark);">${n}</p>
+    </div>
+    <div class="card-soft" style="background:var(--st-green-bg); cursor:pointer;" onclick="openStatusListOverlay('Selesai', 'Kontrak Selesai')">
+      <p class="kpi-label" style="color:var(--st-green-fg);">Selesai</p>
+      <p class="kpi-value" style="color:var(--st-green-fg);">${count['Selesai']}</p>
+    </div>
+    <div class="card-soft" style="background:var(--st-amber-bg); cursor:pointer;" onclick="openStatusListOverlay('Masa Pemeliharaan', 'Kontrak Masa Pemeliharaan')">
+      <p class="kpi-label" style="color:var(--st-amber-fg);">Masa pemeliharaan</p>
+      <p class="kpi-value" style="color:var(--st-amber-fg);">${count['Masa Pemeliharaan']}</p>
+    </div>
+    <div class="card-soft" style="background:var(--st-blue-bg); cursor:pointer;" onclick="openStatusListOverlay('Konstruksi', 'Kontrak Konstruksi')">
+      <p class="kpi-label" style="color:var(--st-blue-fg);">Konstruksi</p>
+      <p class="kpi-value" style="color:var(--st-blue-fg);">${count['Konstruksi']}</p>
+    </div>
+    <div class="card-soft" style="background:var(--st-violet-bg); cursor:pointer;" onclick="openStatusListOverlay('Non-Kontraktual', 'Kontrak Non-Kontraktual')">
+      <p class="kpi-label" style="color:var(--st-violet-fg);">Non-Kontraktual</p>
+      <p class="kpi-value" style="color:var(--st-violet-fg);">${count['Non-Kontraktual']}</p>
+    </div>
+    <div class="card-soft" style="background:var(--yellow-soft); cursor:pointer;" onclick="openStatusListOverlay(null, 'Semua Kontrak (Total Nilai)')">
+      <p class="kpi-label" style="color:#92400E;">Total nilai kontrak</p>
+      <p class="kpi-value" style="color:#92400E; font-size:18px;">${formatRpShort(totalNilai)}</p>
+    </div>`;
+}
+
+/* ============== RENDER: DETAIL KONTRAK (overlay) ============== */
+function openOverlay(html, wide){
+  const card = document.getElementById('overlayCard');
+  card.innerHTML = html;
+  card.classList.toggle('wide', !!wide);
+  document.getElementById('overlay').classList.add('show');
+}
+function closeOverlay(){
+  document.getElementById('overlay').classList.remove('show');
+}
+document.getElementById('overlay').addEventListener('click', e => {
+  if(e.target.id === 'overlay') closeOverlay();
+});
+
+function buildKontrakDetailContent(k){
+  const links = LINK_KONTRAK_MAP.get((k.noKontrak || '').trim());
+  const linkButtonsHtml = (links && (links.linkKontrak || links.linkSebaran)) ? `
+    <p class="overlay-group-title">Tautan terkait</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+      ${links.linkKontrak ? `<a href="${links.linkKontrak}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--teal-dark); border:1px solid var(--teal); border-radius:var(--radius); padding:7px 12px; text-decoration:none;">🔗 Buka Link Kontrak</a>` : ''}
+      ${links.linkSebaran ? `<a href="${links.linkSebaran}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--teal-dark); border:1px solid var(--teal); border-radius:var(--radius); padding:7px 12px; text-decoration:none;">📍 Buka Link Sebaran Pekerjaan</a>` : ''}
+    </div>
+  ` : '';
+  return `
+    ${statusPill(k.status)}
+    <p class="overlay-group-title">Identitas</p>
+    <table class="kv">
+      <tr><td>No PRK</td><td>${k.noPrk || '–'}</td></tr>
+      <tr><td>Tahun</td><td>${k.tahun || '–'}</td></tr>
+      <tr><td>Nilai kontrak</td><td>${k.nilai || '–'}</td></tr>
+      <tr><td>Penyedia</td><td>${k.penyedia || '–'}</td></tr>
+    </table>
+    <p class="overlay-group-title">Tanggal dan amandemen</p>
+    <table class="kv">
+      <tr><td>Tgl awal kontrak</td><td>${k.tglAwal || '–'}</td></tr>
+      <tr><td>Efektif kontrak</td><td>${k.efektif || '–'}</td></tr>
+      <tr><td>Akhir kontrak</td><td>${k.akhirKontrak || '–'}</td></tr>
+      <tr><td>Amandemen terakhir</td><td>${k.amandemenTerakhir || '–'}</td></tr>
+      <tr><td>Nilai update amd.</td><td>${k.nilaiAmd || '–'}</td></tr>
+      <tr><td>Akhir kontrak amd.</td><td>${k.akhirAmd || '–'}</td></tr>
+    </table>
+    <p class="overlay-group-title">BAST dan masa pemeliharaan</p>
+    <table class="kv">
+      <tr><td>Tgl BAST I</td><td>${k.bastI || '–'}</td></tr>
+      <tr><td>Durasi pemeliharaan</td><td>${k.durasiPemeliharaan || '–'}</td></tr>
+      <tr><td>Akhir masa pemeliharaan</td><td>${k.akhirPemeliharaan || '–'}</td></tr>
+      <tr><td>Tgl BAST II</td><td>${k.bastII || '–'}</td></tr>
+      <tr><td>Tgl BAP BAST II</td><td>${k.bapBastII || '–'}</td></tr>
+    </table>
+    <p class="overlay-group-title">Jaminan pelaksanaan</p>
+    <table class="kv">
+      <tr><td>Tgl bank garansi</td><td>${k.bankGaransi || '–'}</td></tr>
+      <tr><td>Akhir jaminan pelaksanaan</td><td>${k.akhirJampel || '–'}</td></tr>
+      <tr><td>Status jampel</td><td>${statusPill(k.statusJampel)}</td></tr>
+      <tr><td>Nilai jaminan pelaksanaan</td><td>${k.nilaiJampel || '–'}</td></tr>
+    </table>
+    ${k.keterangan ? `<p class="overlay-group-title">Keterangan</p><p style="font-size:12.5px; margin:0;">${k.keterangan}</p>` : ''}
+    ${linkButtonsHtml}
+    <p class="overlay-group-title">Progres fisik bulanan — Plan vs Actual (%)</p>
+    ${buildMonthlyFisikTable(k.planFisik, k.actualFisik)}
+  `;
+}
+
+function openKontrakDetail(k){
+  const html = `
+    <div class="overlay-head">
+      <div>
+        <p style="font-size:15px; font-weight:600; margin:0 0 4px;">${k.judul}</p>
+        <p style="font-size:12px; color:var(--ink-2); margin:0;">${k.noKontrak}</p>
+      </div>
+      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
+    </div>
+    ${buildKontrakDetailContent(k)}
+  `;
+  openOverlay(html);
+}
+
+/* ============== SEARCH LIVE: DETAIL KONTRAK ============== */
+const KONTRAK_SEARCH_MAX_RESULTS = 40;
+
+function escapeHtml(s){
+  return (s || '').toString()
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function highlightMatch(text, query){
+  const safe = escapeHtml(text);
+  const idx = safe.toLowerCase().indexOf(query.toLowerCase());
+  if(idx === -1) return safe;
+  return safe.slice(0, idx)
+    + '<mark style="background:var(--yellow-soft); color:inherit; padding:0 1px; border-radius:2px;">'
+    + safe.slice(idx, idx + query.length) + '</mark>'
+    + safe.slice(idx + query.length);
+}
+
+function renderKontrakSearchResults(query){
+  const panel = document.getElementById('kontrakSearchResults');
+  const q = query.trim().toLowerCase();
+
+  if(!q){
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    return;
+  }
+
+  const matches = CONTRACTS
+    .map((k, idx) => ({ k, idx }))
+    .filter(({k}) =>
+      (k.judul || '').toLowerCase().includes(q) ||
+      (k.noKontrak || '').toLowerCase().includes(q) ||
+      (k.penyedia || '').toLowerCase().includes(q)
+    );
+
+  if(!matches.length){
+    panel.innerHTML = `<div class="search-empty">Tidak ditemukan kontrak dengan kata kunci "${escapeHtml(query)}".</div>`;
+    panel.style.display = 'block';
+    return;
+  }
+
+  const capped = matches.slice(0, KONTRAK_SEARCH_MAX_RESULTS);
+
+  // Kelompokkan per tahun, urut terbaru dulu — konsisten dengan tampilan lama
+  const grouped = {};
+  capped.forEach(({k, idx}) => {
+    const t = k.tahun || 'Tanpa tahun';
+    if(!grouped[t]) grouped[t] = [];
+    grouped[t].push({k, idx});
+  });
+  const years = Object.keys(grouped).sort((a,b) => b.localeCompare(a));
+
+  let html = years.map(y => `
+    <div class="search-group-label">${escapeHtml(y)}</div>
+    ${grouped[y].map(({k, idx}) => `
+      <div class="search-result-item" onclick="selectKontrakFromSearch(${idx})">
+        <div style="font-size:13px; font-weight:500;">${highlightMatch(k.judul, q)}</div>
+        <div style="font-size:11px; color:var(--ink-2); margin-top:2px;">${highlightMatch(k.noKontrak, q)} · ${highlightMatch(k.penyedia, q)}</div>
+      </div>`).join('')}
+  `).join('');
+
+  if(matches.length > capped.length){
+    html += `<div class="search-more">Menampilkan ${capped.length} dari ${matches.length} hasil — persempit kata kunci untuk hasil lebih akurat</div>`;
+  }
+
+  panel.innerHTML = html;
+  panel.style.display = 'block';
+}
+
+function selectKontrakFromSearch(idx){
+  document.getElementById('kontrakSearchInput').value = '';
+  document.getElementById('kontrakSearchResults').style.display = 'none';
+  document.getElementById('kontrakSearchResults').innerHTML = '';
+  openKontrakDetail(CONTRACTS[idx]);
+}
+
+function setupKontrakSearch(){
+  const input = document.getElementById('kontrakSearchInput');
+  input.addEventListener('input', e => renderKontrakSearchResults(e.target.value));
+  input.addEventListener('focus', e => {
+    if(e.target.value.trim()) renderKontrakSearchResults(e.target.value);
+  });
+  document.addEventListener('click', e => {
+    const wrap = document.getElementById('kontrakSearchWrap');
+    if(wrap && !wrap.contains(e.target)){
+      document.getElementById('kontrakSearchResults').style.display = 'none';
+    }
+  });
+}
+
+/* ============== RENDER: STATUS PIC / PENYEDIA (overlay list) ============== */
+function openListOverlay(title, list){
+  const rows = list.length ? list.map(k => `
+    <div class="list-item">
+      <p class="top">${k.noKontrak}</p>
+      <p class="mid">${k.judul}</p>
+      <div class="bottom">
+        <span style="font-size:12px; color:var(--ink-2);">${k.nilai} · ${k.penyedia}</span>
+        ${statusPill(k.status)}
+      </div>
+    </div>`).join('') : `<p style="font-size:13px; color:var(--ink-3);">Tidak ada kontrak.</p>`;
+
+  openOverlay(`
+    <div class="overlay-head">
+      <p style="font-size:15px; font-weight:600; margin:0;">${title}</p>
+      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
+    </div>
+    ${rows}
+  `);
+}
+
+/* ============== RENDER: TABEL BAYAR BULAN INI (dengan pagination) ============== */
+const BAYAR_ROWS_PER_PAGE = 10;
+let bayarTableRows = [];
+let bayarTablePage = 1;
+
+function renderBayarTable(monthIdx){
+  bayarTableRows = CONTRACTS
+    .map(k => ({
+      judul: k.judul, penyedia: k.penyedia,
+      rp: k.planBayarPct[monthIdx], rrp: k.planBayarRp[monthIdx],
+      ap: k.actualBayarPct[monthIdx], arp: k.actualBayarRp[monthIdx]
+    }))
+    .filter(r => {
+      const adaRencana = r.rrp !== null && r.rrp !== 0;
+      const adaRealisasi = r.arp !== null && Math.abs(r.arp) >= 1;
+      const ditandaiVip = r.arp !== null && Math.abs(r.arp) < 1; // tetap tampil walau rencana kosong
+      return adaRencana || adaRealisasi || ditandaiVip;
+    });
+
+  bayarTablePage = 1;
+  renderBayarTablePage();
+}
+
+function renderBayarTablePage(){
+  const tbody = document.getElementById('bayarTableBody');
+  const tfoot = document.getElementById('bayarTableFoot');
+  const rows = bayarTableRows;
+  const totalPages = Math.max(1, Math.ceil(rows.length / BAYAR_ROWS_PER_PAGE));
+  if(bayarTablePage > totalPages) bayarTablePage = totalPages;
+  if(bayarTablePage < 1) bayarTablePage = 1;
+
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada data rencana/realisasi bayar untuk bulan ini.</td></tr>`;
+    tfoot.innerHTML = '';
+    renderBayarPaginationControls(0, 1, 1);
+    return;
+  }
+
+  const start = (bayarTablePage - 1) * BAYAR_ROWS_PER_PAGE;
+  const pageRows = rows.slice(start, start + BAYAR_ROWS_PER_PAGE);
+
+  tbody.innerHTML = pageRows.map(r => {
+    // Formula sumbernya: =IF(PROGRESS_BAYAR!$C..=$C..,PROGRESS_BAYAR!EV..,"")
+    // Kalau kondisi TIDAK cocok → hasilnya string kosong "" → kebaca null (dash "-").
+    // Kalau kondisi COCOK tapi nilainya kebetulan 0 → angka 0 ASLI → format Keuangan
+    // tampil "Rp0.00". Ini sinyal VIP dari sheet PROGRESS_BAYAR.
+    // Patokan status HANYA dari kolom Actual Rp (arp) — bukan Actual % (ap), karena
+    // kolom % punya rumus sendiri yang bisa saja masih berisi angka lain.
+    // Toleransi kecil (<1 rupiah) untuk jaga-jaga sisa desimal super kecil dari rumus.
+    const isEffectivelyZero = v => v !== null && Math.abs(v) < 1;
+    const sudahBayar = r.arp !== null && !isEffectivelyZero(r.arp);
+    const isVip = r.arp !== null && isEffectivelyZero(r.arp);
+    let pill;
+    if(sudahBayar) pill = '<span class="status-pill paid">Terbayar</span>';
+    else if(isVip) pill = '<span class="status-pill vip">VIP</span>';
+    else pill = '<span class="status-pill unpaid">Belum Terbayar</span>';
+    return `
+    <tr>
+      <td data-label="Judul kontrak">${r.judul}</td>
+      <td data-label="Penyedia">${r.penyedia}</td>
+      <td class="num" data-label="Rencana %">${r.rp !== null ? r.rp.toFixed(2) + '%' : '–'}</td>
+      <td data-label="Rencana Rp">${formatRp(r.rrp)}</td>
+      <td style="text-align:center;" data-label="Status Bayar">${pill}</td>
+    </tr>`;
+  }).join('');
+
+  const totalRencana = rows.reduce((sum, r) => sum + (r.rrp || 0), 0);
+  const totalRealisasi = rows.reduce((sum, r) => sum + (r.arp || 0), 0);
+  tfoot.innerHTML = `
+    <tr>
+      <td colspan="3" style="text-align:right;">TOTAL RENCANA &amp; REALISASI BAYAR (semua halaman)</td>
+      <td>
+        <div style="font-size:10px; font-weight:400; opacity:.75; margin-bottom:2px;">Rencana</div>
+        ${formatRp(totalRencana)}
+      </td>
+      <td style="text-align:center;">
+        <div style="font-size:10px; font-weight:400; opacity:.75; margin-bottom:2px;">Realisasi</div>
+        ${formatRp(totalRealisasi)}
+      </td>
+    </tr>`;
+
+  renderBayarPaginationControls(rows.length, bayarTablePage, totalPages);
+}
+
+function renderBayarPaginationControls(totalRows, page, totalPages){
+  const el = document.getElementById('bayarTablePagination');
+  if(!totalRows){ el.innerHTML = ''; return; }
+  const startRow = (page - 1) * BAYAR_ROWS_PER_PAGE + 1;
+  const endRow = Math.min(page * BAYAR_ROWS_PER_PAGE, totalRows);
+  el.innerHTML = `
+    <span style="font-size:12px; color:var(--ink-2);">Menampilkan ${startRow}–${endRow} dari ${totalRows} kontrak</span>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button id="bayarPrevBtn" ${page <= 1 ? 'disabled' : ''} style="padding:6px 10px;">‹ Sebelumnya</button>
+      <span style="font-size:12px; color:var(--ink-2);">Halaman ${page} dari ${totalPages}</span>
+      <button id="bayarNextBtn" ${page >= totalPages ? 'disabled' : ''} style="padding:6px 10px;">Berikutnya ›</button>
+    </div>`;
+  const prevBtn = document.getElementById('bayarPrevBtn');
+  const nextBtn = document.getElementById('bayarNextBtn');
+  if(prevBtn) prevBtn.addEventListener('click', () => { bayarTablePage--; renderBayarTablePage(); });
+  if(nextBtn) nextBtn.addEventListener('click', () => { bayarTablePage++; renderBayarTablePage(); });
+}
+
+/* ============== RENDER: CHARTS & KPI TAHUNAN ============== */
+let bayarChartInstance = null;
+let fisikChartInstance = null;
+
+function renderChartsAndKpi(){
+  const rencanaPerBulan = [], realisasiPerBulan = [];
+  const jumlahKontrakRencana = [], jumlahKontrakRealisasi = [];
+  let totalRencana = 0, totalRealisasi = 0;
+
+  for(let m = 0; m < 12; m++){
+    let rSum = 0, aSum = 0, aHasValue = false;
+    let rCount = 0, aCount = 0;
+    CONTRACTS.forEach(k => {
+      if(k.planBayarRp[m] !== null && k.planBayarRp[m] !== 0){ rSum += k.planBayarRp[m]; rCount++; }
+      if(k.actualBayarRp[m] !== null && k.actualBayarRp[m] !== 0){ aSum += k.actualBayarRp[m]; aHasValue = true; aCount++; }
+    });
+    rencanaPerBulan.push(rSum / 1e9);
+    realisasiPerBulan.push(aHasValue ? aSum / 1e9 : null);
+    jumlahKontrakRencana.push(rCount);
+    jumlahKontrakRealisasi.push(aHasValue ? aCount : null);
+    totalRencana += rSum;
+    if(aHasValue) totalRealisasi += aSum;
+  }
+
+  document.getElementById('kpiRencanaTahunan').textContent = formatRp(totalRencana);
+  document.getElementById('kpiRealisasiSaatIni').textContent = formatRp(totalRealisasi);
+  const pctEl = document.getElementById('kpiRealisasiPct');
+  if(totalRencana > 0){
+    const pct = (totalRealisasi / totalRencana) * 100;
+    pctEl.textContent = pct.toFixed(1) + '% dari rencana bayar tahunan';
+  }else{
+    pctEl.textContent = '';
+  }
+
+  if(bayarChartInstance) bayarChartInstance.destroy();
+  bayarChartInstance = new Chart(document.getElementById('bayarChart'), {
+    type: 'bar',
+    plugins: [ChartDataLabels],
+    data: {
+      labels: BULAN_SINGKAT,
+      datasets: [
+        { label:'Rencana', data: rencanaPerBulan, backgroundColor:'#2a78d6', borderRadius:4,
+          datalabels: { anchor:'end', align:'top', color:'#2a78d6', font:{ weight:'700', size:11 },
+            formatter: (value, ctx) => {
+              const n = jumlahKontrakRencana[ctx.dataIndex];
+              return n ? String(n) : '';
+            } } },
+        { label:'Realisasi', data: realisasiPerBulan, backgroundColor:'#1baf7a', borderRadius:4,
+          datalabels: { anchor:'end', align:'top', color:'#1baf7a', font:{ weight:'700', size:11 },
+            formatter: (value, ctx) => {
+              const n = jumlahKontrakRealisasi[ctx.dataIndex];
+              return n ? String(n) : '';
+            } } }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      layout: { padding: { top: 22 } },
+      plugins:{ legend:{ display:false } },
+      scales:{ y:{ ticks:{ callback:v => 'Rp'+v.toFixed(1)+'M' } } }
+    }
+  });
+
+  const normalizeText = s => (s || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  TARGET_KINERJA_CONTRACTS = CONTRACTS.filter(k => normalizeText(k.keterangan).includes('TARGET KINERJA'));
+  console.info('[Dashboard] Jumlah kontrak dengan tag TARGET KINERJA di kolom Y:', TARGET_KINERJA_CONTRACTS.length);
+  console.info('[Dashboard] Daftar kontrak Target Kinerja:', TARGET_KINERJA_CONTRACTS.map(k => ({
+    judul: k.judul, penyedia: k.penyedia,
+    planJun: k.planFisik[5], actualJun: k.actualFisik[5]
+  })));
+
+  const planFisikAvg = [], actualFisikAvg = [];
+  for(let m = 0; m < 12; m++){
+    const pv = TARGET_KINERJA_CONTRACTS.map(k => k.planFisik[m]).filter(v => v !== null);
+    const av = TARGET_KINERJA_CONTRACTS.map(k => k.actualFisik[m]).filter(v => v !== null);
+    planFisikAvg.push(pv.length ? pv.reduce((a,b)=>a+b,0)/pv.length : null);
+    actualFisikAvg.push(av.length ? av.reduce((a,b)=>a+b,0)/av.length : null);
+  }
+
+  if(fisikChartInstance) fisikChartInstance.destroy();
+  fisikChartInstance = new Chart(document.getElementById('fisikChart'), {
+    type:'line',
+    data:{
+      labels: BULAN_SINGKAT,
+      datasets:[
+        { label:'Rencana', data: planFisikAvg, borderColor:'#2a78d6', backgroundColor:'transparent', borderWidth:2, pointRadius:3, spanGaps:true },
+        { label:'Realisasi', data: actualFisikAvg, borderColor:'#1baf7a', backgroundColor:'transparent', borderWidth:2, pointRadius:3, borderDash:[5,3], spanGaps:false }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ y:{ min:0, max:100, ticks:{ callback:v => v+'%' } } }
+    }
+  });
+}
+
+/* ============== INISIALISASI FILTER ============== */
+function populateFilters(){
+  const tahunSet = [...new Set(CONTRACTS.map(k => k.tahun).filter(Boolean))].sort().reverse();
+  const tahunSel = document.getElementById('tahunSel');
+  tahunSel.innerHTML = tahunSet.map(t => `<option value="${t}">Tahun: ${t}</option>`).join('');
+  tahunSel.addEventListener('change', e => renderStatus(e.target.value));
+  if(tahunSet.length) renderStatus(tahunSet[0]);
+
+  const bulanSel = document.getElementById('bulanSel');
+  bulanSel.innerHTML = BULAN_LABEL.map((b,i) => `<option value="${i}">${b}</option>`).join('');
+  const nowMonth = new Date().getMonth();
+  bulanSel.value = nowMonth;
+  bulanSel.addEventListener('change', e => renderBayarTable(parseInt(e.target.value,10)));
+  renderBayarTable(nowMonth);
+
+  setupKontrakSearch();
+
+  const isPlaceholder = v => !v || v === '-' || v.toUpperCase() === 'N/A';
+
+  const picSet = [...new Set(CONTRACTS.map(k => k.pic).filter(v => !isPlaceholder(v)))].sort();
+  const picSel = document.getElementById('picSel');
+  picSet.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    picSel.appendChild(opt);
+  });
+  picSel.addEventListener('change', e => {
+    if(e.target.value !== ''){
+      openListOverlay('PIC: ' + e.target.value, CONTRACTS.filter(k => k.pic === e.target.value));
+      e.target.value = '';
+    }
+  });
+
+  const penyediaSet = [...new Set(CONTRACTS.map(k => k.penyedia).filter(v => !isPlaceholder(v)))].sort();
+  const penyediaSel = document.getElementById('penyediaSel');
+  penyediaSet.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    penyediaSel.appendChild(opt);
+  });
+  penyediaSel.addEventListener('change', e => {
+    if(e.target.value !== ''){
+      openListOverlay(e.target.value, CONTRACTS.filter(k => k.penyedia === e.target.value));
+      e.target.value = '';
+    }
+  });
+
+  document.getElementById('btnLihatTargetKinerja').addEventListener('click', () => {
+    openTargetKinerjaOverlay();
+  });
+
+  document.getElementById('btnScreenshotBayarTable').addEventListener('click', () => {
+    const bulanText = document.getElementById('bulanSel').selectedOptions[0].textContent.trim();
+    screenshotElement('bayarTableCaptureArea', 'btnScreenshotBayarTable', 'screenshotBayarIcon',
+      'Screenshot tabel', `tabel-rencana-realisasi-bayar-${bulanText}`);
+  });
+
+  document.getElementById('btnScreenshotBayarChart').addEventListener('click', () => {
+    screenshotElement('bayarChartCaptureArea', 'btnScreenshotBayarChart', 'screenshotBayarChartIcon',
+      'Screenshot', 'tren-rencana-realisasi-bayar-bulanan',
+      { prepare: prepareChartForScreenshot, restore: restoreChartAfterScreenshot });
+  });
+}
+
+/* Chart.js menggambar isi <canvas> di resolusi sesuai lebar layar SAAT chart pertama
+   dibuat — kalau dibuka dari HP yang sempit, bitmap-nya memang sudah kecil sejak awal,
+   dan sekadar mem-paksa windowWidth lebar saat html2canvas tidak akan menambah resolusi
+   itu (beda mekanisme dari elemen HTML biasa). Makanya di sini canvas-nya benar-benar
+   diperbesar & digambar ulang oleh Chart.js dulu (di luar layar, tak terlihat pengguna),
+   baru di-screenshot, lalu dikembalikan ke ukuran semula. */
+function prepareChartForScreenshot(){
+  return new Promise(resolve => {
+    const container = document.getElementById('bayarChartCaptureArea');
+    container.dataset.origStyle = container.getAttribute('style') || '';
+    container.style.position = 'fixed';
+    container.style.left = '-3000px';
+    container.style.top = '0';
+    container.style.width = '1100px';
+    container.style.maxWidth = 'none';
+    container.style.zIndex = '-1';
+    if(bayarChartInstance) bayarChartInstance.resize();
+    // tunggu 2 frame supaya chart benar-benar selesai digambar ulang sebelum di-capture
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+}
+function restoreChartAfterScreenshot(){
+  const container = document.getElementById('bayarChartCaptureArea');
+  container.setAttribute('style', container.dataset.origStyle || '');
+  delete container.dataset.origStyle;
+  if(bayarChartInstance) bayarChartInstance.resize();
+}
+
+async function screenshotElement(elementId, btnId, iconId, defaultLabel, filenameFallback, hooks){
+  const opts = hooks || {};
+  const target = document.getElementById(elementId);
+  const btn = document.getElementById(btnId);
+  const icon = document.getElementById(iconId);
+  const label = btn.childNodes[btn.childNodes.length - 1];
+
+  // windowWidth dipaksa lebar desktop supaya hasil screenshot tetap tajam & proporsional
+  // meski dibuka dari layar HP yang sempit — bukan ikut lebar layar perangkat asli.
+  const renderCanvas = async () => {
+    if(opts.prepare) await opts.prepare();
+    try{
+      return await html2canvas(target, {
+        backgroundColor: '#FFFFFF',
+        scale: 2,
+        useCORS: true,
+        windowWidth: 1200
+      });
+    }finally{
+      if(opts.restore) await opts.restore();
+    }
+  };
+
+  const setBusy = () => {
+    icon.textContent = '⏳';
+    if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Memproses...';
+  };
+  const resetLabel = (delay) => setTimeout(() => {
+    icon.textContent = '📷';
+    if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' ' + defaultLabel;
+  }, delay);
+
+  setBusy();
+
+  try{
+    if(navigator.clipboard && window.ClipboardItem){
+      // Blob dibungkus Promise supaya browser tetap mengaitkan aksi salin dengan
+      // klik tombol (user gesture) walau proses render-nya berjalan async.
+      const item = new ClipboardItem({
+        'image/png': renderCanvas().then(canvas => new Promise(resolve => canvas.toBlob(resolve, 'image/png')))
+      });
+      await navigator.clipboard.write([item]);
+      icon.textContent = '✅';
+      if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Tersalin! Tempel di WA/Slides (Ctrl+V)';
+      resetLabel(3000);
+      return;
+    }
+    throw new Error('Clipboard image API tidak didukung browser ini');
+  }catch(err){
+    console.warn('[Dashboard] Salin ke clipboard gagal, fallback unduh file:', err);
+    try{
+      const canvas = await renderCanvas();
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filenameFallback.replace(/\s+/g, '-') + '.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+      icon.textContent = '⬇️';
+      if(label && label.nodeType === Node.TEXT_NODE) label.textContent = ' Browser tidak dukung salin gambar — file diunduh';
+      resetLabel(3500);
+    }catch(err2){
+      alert('Gagal membuat screenshot. Coba lagi.');
+      console.error('[Dashboard] Gagal screenshot total:', err2);
+      resetLabel(500);
+    }
+  }
+}
+
+// Tabel mini per bulan (baris 1 = Plan, baris 2 = Actual) — dipakai di modal Target Kinerja
+// maupun di kartu Detail Kontrak (dropdown & accordion)
+function buildMonthlyFisikTable(planArr, actualArr){
+  const planCells = planArr.map(v =>
+    `<td class="num" style="background:#EFF6FF; border-right:1px solid var(--line-soft); padding:8px 10px; white-space:nowrap;">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`
+  ).join('');
+  const actualCells = actualArr.map(v =>
+    `<td class="num" style="background:#F0FDF4; border-right:1px solid var(--line-soft); padding:8px 10px; white-space:nowrap;">${v !== null ? v.toFixed(2)+'%' : '–'}</td>`
+  ).join('');
+  const monthHeaders = BULAN_SINGKAT.map(b =>
+    `<th style="text-align:center; font-size:11.5px; min-width:62px; border-right:1px solid rgba(255,255,255,.2);">${b}</th>`
+  ).join('');
+  return `
+    <div style="margin-top:4px;">
+      <p style="font-size:10.5px; color:var(--ink-3); margin:0 0 6px;">◄ Geser ke samping untuk lihat bulan lainnya ►</p>
+      <div style="overflow-x:auto; border:1px solid var(--line); border-radius:8px;">
+        <table style="min-width:700px; border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="width:84px; position:sticky; left:0; text-align:left; padding:8px 10px; border-right:2px solid rgba(255,255,255,.3); z-index:1;">Bulan</th>
+              ${monthHeaders}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:700; color:#1E40AF; position:sticky; left:0; background:#EFF6FF; padding:8px 10px; border-right:2px solid var(--line); z-index:1;">Plan</td>
+              ${planCells}
+            </tr>
+            <tr>
+              <td style="font-weight:700; color:#15803D; position:sticky; left:0; background:#F0FDF4; padding:8px 10px; border-right:2px solid var(--line); z-index:1;">Actual</td>
+              ${actualCells}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function openTargetKinerjaOverlay(){
+  const nowMonth = new Date().getMonth();
+  const rows = TARGET_KINERJA_CONTRACTS.map(k => ({
+    judul: k.judul, penyedia: k.penyedia,
+    plan: k.planFisik[nowMonth], actual: k.actualFisik[nowMonth],
+    planBulanan: k.planFisik, actualBulanan: k.actualFisik
+  }));
+
+  const planVals = rows.map(r => r.plan).filter(v => v !== null);
+  const actualVals = rows.map(r => r.actual).filter(v => v !== null);
+  const avgPlan = planVals.length ? planVals.reduce((a,b)=>a+b,0)/planVals.length : null;
+  const avgActual = actualVals.length ? actualVals.reduce((a,b)=>a+b,0)/actualVals.length : null;
+
+  const bodyRows = rows.length ? rows.map((r, idx) => {
+    const diff = (r.plan !== null && r.actual !== null) ? (r.actual - r.plan) : null;
+    const diffColor = diff === null ? 'var(--ink-3)' : (diff >= 0 ? '#15803D' : '#C2410C');
+    const diffText = diff === null ? '–' : (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
+    return `
+    <tr>
+      <td data-label="Judul kontrak">${r.judul}</td>
+      <td data-label="Penyedia">${r.penyedia}</td>
+      <td class="num" data-label="Plan %">${r.plan !== null ? r.plan.toFixed(2)+'%' : '–'}</td>
+      <td class="num" data-label="Actual %">${r.actual !== null ? r.actual.toFixed(2)+'%' : '–'}</td>
+      <td class="num" style="color:${diffColor}; font-weight:600;" data-label="Selisih">${diffText}</td>
+      <td style="text-align:center;">
+        <button id="btnFisikDetail${idx}" onclick="toggleFisikDetail(${idx})" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">▼ Detail</button>
+      </td>
+    </tr>
+    <tr id="fisikDetailRow${idx}" class="detail-row-hidden">
+      <td colspan="6" style="padding:0; background:var(--surface);">
+        ${buildMonthlyFisikTable(r.planBulanan, r.actualBulanan)}
+      </td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada kontrak bertanda TARGET KINERJA di kolom Keterangan.</td></tr>`;
+
+  openOverlay(`
+    <div class="overlay-head">
+      <div>
+        <p style="font-size:16px; font-weight:600; margin:0 0 2px;">Target Kinerja — ${BULAN_LABEL[nowMonth]}</p>
+        <p style="font-size:12px; color:var(--ink-2); margin:0;">${rows.length} kontrak bertanda "TARGET KINERJA" di kolom Keterangan · klik "Detail" untuk lihat rincian bulanan</p>
+      </div>
+      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
+    </div>
+    <div class="scroll-table" style="max-height:65vh;">
+      <table class="responsive-stack">
+        <thead>
+          <tr>
+            <th>Judul kontrak</th>
+            <th>Penyedia</th>
+            <th class="num">Plan %</th>
+            <th class="num">Actual %</th>
+            <th class="num">Selisih</th>
+            <th style="text-align:center;">Detail Bulanan</th>
+          </tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2" style="text-align:right;">RATA-RATA (dipakai di chart)</td>
+            <td class="num">${avgPlan !== null ? avgPlan.toFixed(2)+'%' : '–'}</td>
+            <td class="num">${avgActual !== null ? avgActual.toFixed(2)+'%' : '–'}</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  `, true);
+}
+
+function toggleFisikDetail(idx){
+  const row = document.getElementById('fisikDetailRow' + idx);
+  const btn = document.getElementById('btnFisikDetail' + idx);
+  const nowHidden = row.classList.toggle('detail-row-hidden');
+  btn.textContent = nowHidden ? '▼ Detail' : '▲ Tutup';
+}
+
+
+/* ============== MAIN ============== */
+async function init(){
+  try{
+    const [json] = await Promise.all([
+      loadSheet(GID),
+      loadLinkKontrakMap() // sheet pelengkap, tidak pernah reject — lihat catch di dalamnya
+    ]);
+    CONTRACTS = parseContracts(json);
+    if(!CONTRACTS.length) throw new Error('Data ditemukan tapi kosong. Cek struktur kolom sheet MONITORING.');
+
+    console.info('[Dashboard] Jumlah kontrak terbaca:', CONTRACTS.length);
+    console.info('[Dashboard] Contoh kontrak pertama:', CONTRACTS[0]);
+    console.info('[Dashboard] Contoh planBayarRp bulan Jan-Des kontrak pertama:', CONTRACTS[0].planBayarRp);
+
+    populateFilters();
+    renderChartsAndKpi();
+
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('dashboardContent').style.display = 'block';
+  }catch(err){
+    document.getElementById('loadingState').style.display = 'none';
+    const errEl = document.getElementById('errorState');
+    errEl.style.display = 'block';
+    errEl.textContent = err.message || 'Terjadi kesalahan saat memuat data.';
+  }
+}
+
+/* ============== GATE LOGIN ============== */
+const ACCESS_PASSWORD = 'PLN123'; // case-sensitive
+
+document.getElementById('loginForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const input = document.getElementById('loginPassword');
+  const errorEl = document.getElementById('loginError');
+  const card = document.getElementById('loginCard');
+
+  if(input.value === ACCESS_PASSWORD){ // perbandingan case-sensitive (=== di JavaScript)
+    errorEl.textContent = '';
+    document.getElementById('loginOverlay').classList.add('hide');
+    init();
+  }else{
+    errorEl.textContent = 'Password salah. Coba lagi.';
+    card.classList.remove('login-shake');
+    void card.offsetWidth; // reset animasi supaya bisa diulang
+    card.classList.add('login-shake');
+    input.value = '';
+    input.focus();
+  }
+});
+</script>
+</body>
+</html>
