@@ -451,7 +451,7 @@ const HEADER_ROWS = 3; // baris group header + bulan header + baris total, diber
 const IDX = {
   unit:0, unitPelaksana:1, noKontrak:2, noPrk:3, tahun:4, judul:5, nilai:6,
   tglAwal:7, efektif:8, akhirKontrak:9, amandemenTerakhir:10, nilaiAmd:11, akhirAmd:12,
-  telahTerbayarRp:13, telahTerbayarPct:14, belumTerbayarRp:15, belumTerbayarPct:16,
+  statusMasaPelaksanaan:13, telahTerbayarPct:14, belumTerbayarRp:15, belumTerbayarPct:16,
   status:18, bastI:19, durasiPemeliharaan:20, akhirPemeliharaan:21, bastII:22, bapBastII:23,
   bankGaransi:24, akhirJampel:25, statusJampel:26, nilaiJampel:27, penyedia:28, keterangan:29,
   planFisik:31, actualFisik:43, planBayarPct:55, actualBayarPct:67,
@@ -627,6 +627,7 @@ function parseContracts(json){
       tglAwal: cellFmt(row, IDX.tglAwal), efektif: cellFmt(row, IDX.efektif), akhirKontrak: cellFmt(row, IDX.akhirKontrak),
       amandemenTerakhir: cellFmt(row, IDX.amandemenTerakhir), nilaiAmd: cellFmt(row, IDX.nilaiAmd), akhirAmd: cellFmt(row, IDX.akhirAmd),
       status: cellFmt(row, IDX.status).trim(),
+      statusMasaPelaksanaan: cellFmt(row, IDX.statusMasaPelaksanaan).trim(),
       bastI: cellFmt(row, IDX.bastI), durasiPemeliharaan: cellFmt(row, IDX.durasiPemeliharaan), akhirPemeliharaan: cellFmt(row, IDX.akhirPemeliharaan),
       bastII: cellFmt(row, IDX.bastII), bapBastII: cellFmt(row, IDX.bapBastII),
       bankGaransi: cellFmt(row, IDX.bankGaransi), akhirJampel: cellFmt(row, IDX.akhirJampel),
@@ -1140,7 +1141,7 @@ function populateFilters(){
 
   setupKontrakSearch();
 
-  const isPlaceholder = v => !v || v === '-' || v.toUpperCase() === 'N/A';
+  const isPlaceholder = v => !v || v === '-' || v.toUpperCase() === 'N/A' || v.trim().startsWith('#');
 
   const picSet = [...new Set(CONTRACTS.map(k => k.pic).filter(v => !isPlaceholder(v)))].sort();
   const picSel = document.getElementById('picSel');
@@ -1170,7 +1171,7 @@ function populateFilters(){
     }
   });
 
-  const statusMasaSet = [...new Set(CONTRACTS.map(k => k.status).filter(v => !isPlaceholder(v)))].sort();
+  const statusMasaSet = [...new Set(CONTRACTS.map(k => k.statusMasaPelaksanaan).filter(v => !isPlaceholder(v)))].sort();
   const statusMasaSel = document.getElementById('statusMasaSel');
   statusMasaSet.forEach(s => {
     const opt = document.createElement('option');
@@ -1179,7 +1180,7 @@ function populateFilters(){
   });
   statusMasaSel.addEventListener('change', e => {
     if(e.target.value !== ''){
-      openListOverlay('Status: ' + e.target.value, CONTRACTS.filter(k => k.status === e.target.value));
+      openListOverlay('Status Masa Pelaksanaan: ' + e.target.value, CONTRACTS.filter(k => k.statusMasaPelaksanaan === e.target.value));
       e.target.value = '';
     }
   });
