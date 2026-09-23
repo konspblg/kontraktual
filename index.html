@@ -905,7 +905,11 @@ function setupKontrakSearch(){
 }
 
 /* ============== RENDER: STATUS PIC / PENYEDIA (overlay list) ============== */
-function openListOverlay(title, list, showAkhirJampel){
+function openListOverlay(title, list, extraFields){
+  const extraHtml = k => (extraFields || []).map(f =>
+    `<p style="font-size:12px; color:var(--ink-2); margin-top:4px;">${f.label}: ${k[f.key] || '-'}</p>`
+  ).join('');
+
   const rows = list.length ? list.map(k => `
     <div class="list-item">
       <p class="top">${k.noKontrak}</p>
@@ -914,7 +918,7 @@ function openListOverlay(title, list, showAkhirJampel){
         <span style="font-size:12px; color:var(--ink-2);">${k.nilai} · ${k.penyedia}</span>
         ${statusPill(k.status)}
       </div>
-      ${showAkhirJampel ? `<p style="font-size:12px; color:var(--ink-2); margin-top:6px;">Akhir Jaminan Pelaksanaan: ${k.akhirJampel || '-'}</p>` : ''}
+      ${extraHtml(k)}
     </div>`).join('') : `<p style="font-size:13px; color:var(--ink-3);">Tidak ada kontrak.</p>`;
 
   openOverlay(`
@@ -1181,7 +1185,10 @@ function populateFilters(){
   });
   statusMasaSel.addEventListener('change', e => {
     if(e.target.value !== ''){
-      openListOverlay('Status Masa Pelaksanaan: ' + e.target.value, CONTRACTS.filter(k => k.statusMasaPelaksanaan === e.target.value), true);
+      openListOverlay('Status Masa Pelaksanaan: ' + e.target.value, CONTRACTS.filter(k => k.statusMasaPelaksanaan === e.target.value), [
+        { label: 'Akhir Kontrak', key: 'akhirKontrak' },
+        { label: 'Akhir Kontrak Amandemen', key: 'akhirAmd' }
+      ]);
       e.target.value = '';
     }
   });
@@ -1195,7 +1202,9 @@ function populateFilters(){
   });
   statusJampelSel.addEventListener('change', e => {
     if(e.target.value !== ''){
-      openListOverlay('Status Jampel: ' + e.target.value, CONTRACTS.filter(k => k.statusJampel === e.target.value));
+      openListOverlay('Status Jampel: ' + e.target.value, CONTRACTS.filter(k => k.statusJampel === e.target.value), [
+        { label: 'Akhir Jaminan Pelaksanaan', key: 'akhirJampel' }
+      ]);
       e.target.value = '';
     }
   });
