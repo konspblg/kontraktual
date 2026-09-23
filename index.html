@@ -424,6 +424,14 @@
         <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status penyedia</p>
         <select id="penyediaSel" style="width:100%;"><option value="">Pilih penyedia...</option></select>
       </div>
+      <div class="card">
+        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status masa pelaksanaan</p>
+        <select id="statusMasaSel" style="width:100%;"><option value="">Pilih status...</option></select>
+      </div>
+      <div class="card">
+        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status jampel</p>
+        <select id="statusJampelSel" style="width:100%;"><option value="">Pilih status jampel...</option></select>
+      </div>
     </section>
 
   </div>
@@ -1158,6 +1166,34 @@ function populateFilters(){
   penyediaSel.addEventListener('change', e => {
     if(e.target.value !== ''){
       openListOverlay(e.target.value, CONTRACTS.filter(k => k.penyedia === e.target.value));
+      e.target.value = '';
+    }
+  });
+
+  const statusMasaSet = [...new Set(CONTRACTS.map(k => k.status).filter(v => !isPlaceholder(v)))].sort();
+  const statusMasaSel = document.getElementById('statusMasaSel');
+  statusMasaSet.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    statusMasaSel.appendChild(opt);
+  });
+  statusMasaSel.addEventListener('change', e => {
+    if(e.target.value !== ''){
+      openListOverlay('Status: ' + e.target.value, CONTRACTS.filter(k => k.status === e.target.value));
+      e.target.value = '';
+    }
+  });
+
+  const statusJampelSet = [...new Set(CONTRACTS.map(k => k.statusJampel).filter(v => !isPlaceholder(v)))].sort();
+  const statusJampelSel = document.getElementById('statusJampelSel');
+  statusJampelSet.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    statusJampelSel.appendChild(opt);
+  });
+  statusJampelSel.addEventListener('change', e => {
+    if(e.target.value !== ''){
+      openListOverlay('Status Jampel: ' + e.target.value, CONTRACTS.filter(k => k.statusJampel === e.target.value));
       e.target.value = '';
     }
   });
