@@ -373,8 +373,9 @@
               <th style="width:32%;">Judul kontrak</th>
               <th style="width:20%;">Penyedia</th>
               <th class="num" style="width:12%;">Rencana %</th>
-              <th style="width:18%;">Rencana Rp</th>
-              <th style="text-align:center; width:18%;">Status Bayar</th>
+              <th style="width:16%;">Rencana Rp</th>
+              <th style="width:16%;">Realisasi Rp</th>
+              <th style="text-align:center; width:16%;">Status Bayar</th>
             </tr>
           </thead>
           <tbody id="bayarTableBody"></tbody>
@@ -962,7 +963,7 @@ function renderBayarTablePage(){
   if(bayarTablePage < 1) bayarTablePage = 1;
 
   if(!rows.length){
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada data rencana/realisasi bayar untuk bulan ini.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada data rencana/realisasi bayar untuk bulan ini.</td></tr>`;
     tfoot.innerHTML = '';
     renderBayarPaginationControls(0, 1, 1);
     return;
@@ -992,6 +993,7 @@ function renderBayarTablePage(){
       <td data-label="Penyedia">${r.penyedia}</td>
       <td class="num" data-label="Rencana %">${r.rp !== null ? r.rp.toFixed(2) + '%' : '–'}</td>
       <td data-label="Rencana Rp">${formatRp(r.rrp)}</td>
+      <td data-label="Realisasi Rp">${formatRp(r.arp)}</td>
       <td style="text-align:center;" data-label="Status Bayar">${pill}</td>
     </tr>`;
   }).join('');
@@ -1005,10 +1007,11 @@ function renderBayarTablePage(){
         <div style="font-size:10px; font-weight:400; opacity:.75; margin-bottom:2px;">Rencana</div>
         ${formatRp(totalRencana)}
       </td>
-      <td style="text-align:center;">
+      <td>
         <div style="font-size:10px; font-weight:400; opacity:.75; margin-bottom:2px;">Realisasi</div>
         ${formatRp(totalRealisasi)}
       </td>
+      <td></td>
     </tr>`;
 
   renderBayarPaginationControls(rows.length, bayarTablePage, totalPages);
