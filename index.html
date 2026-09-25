@@ -479,6 +479,55 @@ function statusPill(text){
 let CONTRACTS = [];
 let TARGET_KINERJA_CONTRACTS = [];
 let LINK_KONTRAK_MAP = new Map(); // no_kontrak (trimmed) -> { linkKontrak, linkSebaran }
+let TERMIN_BAYAR_MAP = new Map(); // no_kontrak (trimmed) -> array baris termin
+
+// Sheet ketiga: PEMBAYARAN — rincian rencana & realisasi bayar per termin.
+// Kolom C (NOMOR KONTRAK) dipakai sebagai kunci pencocokan ke MONITORING.
+// 1 kontrak bisa punya beberapa baris (1 baris = 1 termin), dipisah baris kosong
+// antar kontrak dan diselingi baris tahun (mis. "2022") sebagai divider — keduanya
+// dilewati karena noKontrak-nya kosong. Header sheet ini 3 baris (judul kolom,
+// baris kosong, label PLAN/REALISASI), sama seperti MONITORING.
+const PEMBAYARAN_GID = '2042709256';
+const PEMBAYARAN_IDX = {
+  noKontrak: 2,
+  terminPlan: 8, fisikPlan: 9, bayarPlan: 10, jumlahPlan: 11, bulanPlan: 12,
+  terminReal: 13, fisikReal: 14, bayarReal: 15, jumlahReal: 16, bulanReal: 17,
+  status: 18
+};
+
+async function loadTerminBayarMap(){
+  try{
+    const json = await loadSheet(PEMBAYARAN_GID, 3);
+    const rows = json.table.rows;
+    const map = new Map();
+    rows.forEach(row => {
+      if(!row.c) return;
+      const noKontrak = cellFmt(row, PEMBAYARAN_IDX.noKontrak).trim();
+      if(!noKontrak) return; // lewati baris kosong / divider tahun
+
+      const item = {
+        termin: cellFmt(row, PEMBAYARAN_IDX.terminPlan).trim(),
+        fisikPlan: cellFmt(row, PEMBAYARAN_IDX.fisikPlan).trim(),
+        bayarPlan: cellFmt(row, PEMBAYARAN_IDX.bayarPlan).trim(),
+        jumlahPlan: cellNum(row, PEMBAYARAN_IDX.jumlahPlan),
+        bulanPlan: cellFmt(row, PEMBAYARAN_IDX.bulanPlan).trim(),
+        fisikReal: cellFmt(row, PEMBAYARAN_IDX.fisikReal).trim(),
+        bayarReal: cellFmt(row, PEMBAYARAN_IDX.bayarReal).trim(),
+        jumlahReal: cellNum(row, PEMBAYARAN_IDX.jumlahReal),
+        bulanReal: cellFmt(row, PEMBAYARAN_IDX.bulanReal).trim(),
+        status: cellFmt(row, PEMBAYARAN_IDX.status).trim()
+      };
+      if(!map.has(noKontrak)) map.set(noKontrak, []);
+      map.get(noKontrak).push(item);
+    });
+    TERMIN_BAYAR_MAP = map;
+    console.info('[Dashboard] Jumlah kontrak dengan data termin (dari PEMBAYARAN):', map.size);
+  }catch(err){
+    // Sheet pelengkap — kalau gagal dimuat, dashboard utama tetap jalan tanpa tabel termin
+    console.warn('[Dashboard] Gagal memuat PEMBAYARAN (progres per termin):', err);
+    TERMIN_BAYAR_MAP = new Map();
+  }
+}
 
 // Sheet kedua: DETIL_KONTRAK — sumber link kontrak & link sebaran pekerjaan.
 // Kolom C (NOMOR KONTRAK) di sini sama persis dengan kolom C di sheet MONITORING,
@@ -798,6 +847,8 @@ function buildKontrakDetailContent(k){
     ${linkButtonsHtml}
     <p class="overlay-group-title">Progres fisik bulanan — Plan vs Actual (%)</p>
     ${buildMonthlyFisikTable(k.planFisik, k.actualFisik)}
+    <p class="overlay-group-title">Progres pembayaran per termin — Plan vs Realisasi</p>
+    ${buildTerminBayarTable(TERMIN_BAYAR_MAP.get(k.noKontrak))}
   `;
 }
 
@@ -1368,6 +1419,48 @@ function buildMonthlyFisikTable(planArr, actualArr){
     </div>`;
 }
 
+function buildTerminBayarTable(items){
+  if(!items || !items.length){
+    return `<p style="font-size:12.5px; color:var(--ink-3); margin:4px 0 0;">Belum ada data pembayaran per termin.</p>`;
+  }
+  const fmtPct = v => (!v || v.toUpperCase() === 'N/A') ? '–' : v;
+  const rowsHtml = items.map(it => `
+    <tr>
+      <td rowspan="2" style="font-weight:700; text-align:center; vertical-align:middle; border-right:2px solid var(--line);">${it.termin || '–'}</td>
+      <td style="font-weight:700; color:#1E40AF; background:#EFF6FF;">Plan</td>
+      <td class="num" style="background:#EFF6FF;">${fmtPct(it.fisikPlan)}</td>
+      <td class="num" style="background:#EFF6FF;">${fmtPct(it.bayarPlan)}</td>
+      <td style="background:#EFF6FF;">${formatRp(it.jumlahPlan)}</td>
+      <td style="background:#EFF6FF;">${it.bulanPlan || '–'}</td>
+      <td rowspan="2" style="text-align:center; vertical-align:middle;">${it.status ? statusPill(it.status) : '–'}</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700; color:#15803D; background:#F0FDF4;">Realisasi</td>
+      <td class="num" style="background:#F0FDF4;">${fmtPct(it.fisikReal)}</td>
+      <td class="num" style="background:#F0FDF4;">${fmtPct(it.bayarReal)}</td>
+      <td style="background:#F0FDF4;">${formatRp(it.jumlahReal)}</td>
+      <td style="background:#F0FDF4;">${it.bulanReal || '–'}</td>
+    </tr>`).join('');
+
+  return `
+    <div style="overflow-x:auto; border:1px solid var(--line); border-radius:8px; margin-top:4px;">
+      <table style="min-width:640px; border-collapse:collapse; width:100%;">
+        <thead>
+          <tr>
+            <th style="width:60px;">Termin</th>
+            <th style="width:80px;"></th>
+            <th class="num" style="width:80px;">Fisik</th>
+            <th class="num" style="width:80px;">Bayar %</th>
+            <th style="width:140px;">Jumlah (Rp)</th>
+            <th style="width:120px;">Bulan</th>
+            <th style="width:100px; text-align:center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
 function openTargetKinerjaOverlay(){
   const nowMonth = new Date().getMonth();
   const rows = TARGET_KINERJA_CONTRACTS.map(k => ({
@@ -1451,7 +1544,8 @@ async function init(){
   try{
     const [json] = await Promise.all([
       loadSheet(GID),
-      loadLinkKontrakMap() // sheet pelengkap, tidak pernah reject — lihat catch di dalamnya
+      loadLinkKontrakMap(), // sheet pelengkap, tidak pernah reject — lihat catch di dalamnya
+      loadTerminBayarMap()  // sheet pelengkap, tidak pernah reject — lihat catch di dalamnya
     ]);
     CONTRACTS = parseContracts(json);
     if(!CONTRACTS.length) throw new Error('Data ditemukan tapi kosong. Cek struktur kolom sheet MONITORING.');
