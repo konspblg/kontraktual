@@ -491,8 +491,7 @@ const PEMBAYARAN_GID = '2042709256';
 const PEMBAYARAN_IDX = {
   noKontrak: 2,
   terminPlan: 8, fisikPlan: 9, bayarPlan: 10, jumlahPlan: 11, bulanPlan: 12,
-  terminReal: 13, fisikReal: 14, bayarReal: 15, jumlahReal: 16, bulanReal: 17,
-  status: 18
+  terminReal: 13, fisikReal: 14, bayarReal: 15, jumlahReal: 16, bulanReal: 17
 };
 
 async function loadTerminBayarMap(){
@@ -514,8 +513,7 @@ async function loadTerminBayarMap(){
         fisikReal: cellFmt(row, PEMBAYARAN_IDX.fisikReal).trim(),
         bayarReal: cellFmt(row, PEMBAYARAN_IDX.bayarReal).trim(),
         jumlahReal: cellNum(row, PEMBAYARAN_IDX.jumlahReal),
-        bulanReal: cellFmt(row, PEMBAYARAN_IDX.bulanReal).trim(),
-        status: cellFmt(row, PEMBAYARAN_IDX.status).trim()
+        bulanReal: cellFmt(row, PEMBAYARAN_IDX.bulanReal).trim()
       };
       if(!map.has(noKontrak)) map.set(noKontrak, []);
       map.get(noKontrak).push(item);
@@ -1432,7 +1430,6 @@ function buildTerminBayarTable(items){
       <td class="num" style="background:#EFF6FF;">${fmtPct(it.bayarPlan)}</td>
       <td style="background:#EFF6FF;">${formatRp(it.jumlahPlan)}</td>
       <td style="background:#EFF6FF;">${it.bulanPlan || '–'}</td>
-      <td rowspan="2" style="text-align:center; vertical-align:middle;">${it.status ? statusPill(it.status) : '–'}</td>
     </tr>
     <tr>
       <td style="font-weight:700; color:#15803D; background:#F0FDF4;">Realisasi</td>
@@ -1444,7 +1441,7 @@ function buildTerminBayarTable(items){
 
   return `
     <div style="overflow-x:auto; border:1px solid var(--line); border-radius:8px; margin-top:4px;">
-      <table style="min-width:640px; border-collapse:collapse; width:100%;">
+      <table style="min-width:560px; border-collapse:collapse; width:100%;">
         <thead>
           <tr>
             <th style="width:60px;">Termin</th>
@@ -1453,7 +1450,6 @@ function buildTerminBayarTable(items){
             <th class="num" style="width:80px;">Bayar %</th>
             <th style="width:140px;">Jumlah (Rp)</th>
             <th style="width:120px;">Bulan</th>
-            <th style="width:100px; text-align:center;">Status</th>
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
