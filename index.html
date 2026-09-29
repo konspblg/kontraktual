@@ -359,6 +359,11 @@
     </section>
 
     <section>
+      <p class="section-title"><span class="dot" style="background:var(--st-red-fg);"></span>Perlu perhatian</p>
+      <div id="perhatianCards" class="grid-4"></div>
+    </section>
+
+    <section>
       <p class="section-title" style="justify-content:space-between;">
         <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar bulan ini</span>
         <button id="btnScreenshotBayarTable" title="Screenshot tabel (salin ke clipboard)" style="font-size:15px; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0;"><span id="screenshotBayarIcon">📷</span></button>
@@ -689,12 +694,13 @@ function parseContracts(json){
   return out;
 }
 
-function openStatusListOverlay(statusFilter, cardLabel){
+function openStatusListOverlay(statusFilter, cardLabel, fieldKey){
+  fieldKey = fieldKey || 'status';
   const tahunSel = document.getElementById('tahunSel');
   const tahun = tahunSel ? tahunSel.value : '__ALL__';
   let filtered = tahun === '__ALL__' ? CONTRACTS : CONTRACTS.filter(k => k.tahun === tahun);
   if(statusFilter !== null){
-    filtered = filtered.filter(k => k.status === statusFilter);
+    filtered = filtered.filter(k => k[fieldKey] === statusFilter);
   }
 
   const rows = filtered.length ? filtered.map(k => {
@@ -705,7 +711,7 @@ function openStatusListOverlay(statusFilter, cardLabel){
       <td style="width:29%;" data-label="Judul kontrak">${k.judul}</td>
       <td style="width:18%;" data-label="Penyedia">${k.penyedia}</td>
       <td class="num" style="width:14%;" data-label="Nilai Kontrak">${k.nilai || '–'}</td>
-      <td style="text-align:center; width:12%;" data-label="Status">${statusPill(k.status)}</td>
+      <td style="text-align:center; width:12%;" data-label="Status">${statusPill(k[fieldKey])}</td>
       <td style="text-align:center; width:12%;">
         <button id="btnStatusDetail${idx}" onclick="toggleStatusDetail(${idx})" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">▼ Detail</button>
       </td>
@@ -783,6 +789,31 @@ function renderStatus(tahun){
       <p class="kpi-label" style="color:#92400E;">Total nilai kontrak</p>
       <p class="kpi-value" style="color:#92400E; font-size:18px;">${formatRpShort(totalNilai)}</p>
     </div>`;
+}
+
+/* ============== RENDER: PERLU PERHATIAN (kartu warning) ============== */
+function renderPerhatianCards(tahun){
+  const filtered = tahun === '__ALL__' ? CONTRACTS : CONTRACTS.filter(k => k.tahun === tahun);
+  const hampirExpired = filtered.filter(k => k.statusMasaPelaksanaan === 'HAMPIR EXPIRED').length;
+  const perluAmandemen = filtered.filter(k => k.statusMasaPelaksanaan === 'PERLU AMANDEMEN').length;
+  const jampelExpired = filtered.filter(k => k.statusJampel === 'EXPIRED').length;
+
+  const cardHtml = (count, label, statusValue, fieldKey, title) => {
+    const alert = count > 0;
+    const bg = alert ? 'var(--st-red-bg)' : 'var(--st-green-bg)';
+    const fg = alert ? 'var(--st-red-fg)' : 'var(--st-green-fg)';
+    const onclick = alert ? `onclick="openStatusListOverlay('${statusValue}', '${title}', '${fieldKey}')"` : '';
+    return `
+    <div class="card-soft" style="background:${bg}; ${alert ? 'cursor:pointer;' : ''}" ${onclick}>
+      <p class="kpi-label" style="color:${fg};">${label}</p>
+      <p class="kpi-value" style="color:${fg};">${count}</p>
+    </div>`;
+  };
+
+  document.getElementById('perhatianCards').innerHTML =
+    cardHtml(hampirExpired, 'Kontrak: Hampir Expired', 'HAMPIR EXPIRED', 'statusMasaPelaksanaan', 'Kontrak — Status Masa Pelaksanaan Hampir Expired') +
+    cardHtml(perluAmandemen, 'Kontrak: Perlu Amandemen', 'PERLU AMANDEMEN', 'statusMasaPelaksanaan', 'Kontrak — Status Masa Pelaksanaan Perlu Amandemen') +
+    cardHtml(jampelExpired, 'Jampel: Expired', 'EXPIRED', 'statusJampel', 'Kontrak — Status Jampel Expired');
 }
 
 /* ============== RENDER: DETAIL KONTRAK (overlay) ============== */
@@ -1186,8 +1217,8 @@ function populateFilters(){
   const tahunSet = [...new Set(CONTRACTS.map(k => k.tahun).filter(Boolean))].sort().reverse();
   const tahunSel = document.getElementById('tahunSel');
   tahunSel.innerHTML = tahunSet.map(t => `<option value="${t}">Tahun: ${t}</option>`).join('');
-  tahunSel.addEventListener('change', e => renderStatus(e.target.value));
-  if(tahunSet.length) renderStatus(tahunSet[0]);
+  tahunSel.addEventListener('change', e => { renderStatus(e.target.value); renderPerhatianCards(e.target.value); });
+  if(tahunSet.length){ renderStatus(tahunSet[0]); renderPerhatianCards(tahunSet[0]); }
 
   const bulanSel = document.getElementById('bulanSel');
   bulanSel.innerHTML = BULAN_LABEL.map((b,i) => `<option value="${i}">${b}</option>`).join('');
