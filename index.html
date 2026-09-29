@@ -694,10 +694,10 @@ function parseContracts(json){
   return out;
 }
 
-function openStatusListOverlay(statusFilter, cardLabel, fieldKey){
+function openStatusListOverlay(statusFilter, cardLabel, fieldKey, ignoreYear){
   fieldKey = fieldKey || 'status';
   const tahunSel = document.getElementById('tahunSel');
-  const tahun = tahunSel ? tahunSel.value : '__ALL__';
+  const tahun = (tahunSel && !ignoreYear) ? tahunSel.value : '__ALL__';
   let filtered = tahun === '__ALL__' ? CONTRACTS : CONTRACTS.filter(k => k.tahun === tahun);
   if(statusFilter !== null){
     filtered = filtered.filter(k => k[fieldKey] === statusFilter);
@@ -792,17 +792,18 @@ function renderStatus(tahun){
 }
 
 /* ============== RENDER: PERLU PERHATIAN (kartu warning) ============== */
-function renderPerhatianCards(tahun){
-  const filtered = tahun === '__ALL__' ? CONTRACTS : CONTRACTS.filter(k => k.tahun === tahun);
-  const hampirExpired = filtered.filter(k => k.statusMasaPelaksanaan === 'HAMPIR EXPIRED').length;
-  const perluAmandemen = filtered.filter(k => k.statusMasaPelaksanaan === 'PERLU AMANDEMEN').length;
-  const jampelExpired = filtered.filter(k => k.statusJampel === 'EXPIRED').length;
+function renderPerhatianCards(){
+  // Sengaja tidak ikut filter dropdown Tahun — status Hampir Expired/Perlu
+  // Amandemen/Jampel Expired relevan untuk semua kontrak, terlepas dari tahun kontrak dibuat.
+  const hampirExpired = CONTRACTS.filter(k => k.statusMasaPelaksanaan === 'HAMPIR EXPIRED').length;
+  const perluAmandemen = CONTRACTS.filter(k => k.statusMasaPelaksanaan === 'PERLU AMANDEMEN').length;
+  const jampelExpired = CONTRACTS.filter(k => k.statusJampel === 'EXPIRED').length;
 
   const cardHtml = (count, label, statusValue, fieldKey, title) => {
     const alert = count > 0;
     const bg = alert ? 'var(--st-red-bg)' : 'var(--st-green-bg)';
     const fg = alert ? 'var(--st-red-fg)' : 'var(--st-green-fg)';
-    const onclick = alert ? `onclick="openStatusListOverlay('${statusValue}', '${title}', '${fieldKey}')"` : '';
+    const onclick = alert ? `onclick="openStatusListOverlay('${statusValue}', '${title}', '${fieldKey}', true)"` : '';
     return `
     <div class="card-soft" style="background:${bg}; ${alert ? 'cursor:pointer;' : ''}" ${onclick}>
       <p class="kpi-label" style="color:${fg};">${label}</p>
@@ -1217,8 +1218,9 @@ function populateFilters(){
   const tahunSet = [...new Set(CONTRACTS.map(k => k.tahun).filter(Boolean))].sort().reverse();
   const tahunSel = document.getElementById('tahunSel');
   tahunSel.innerHTML = tahunSet.map(t => `<option value="${t}">Tahun: ${t}</option>`).join('');
-  tahunSel.addEventListener('change', e => { renderStatus(e.target.value); renderPerhatianCards(e.target.value); });
-  if(tahunSet.length){ renderStatus(tahunSet[0]); renderPerhatianCards(tahunSet[0]); }
+  tahunSel.addEventListener('change', e => renderStatus(e.target.value));
+  if(tahunSet.length) renderStatus(tahunSet[0]);
+  renderPerhatianCards();
 
   const bulanSel = document.getElementById('bulanSel');
   bulanSel.innerHTML = BULAN_LABEL.map((b,i) => `<option value="${i}">${b}</option>`).join('');
