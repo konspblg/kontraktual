@@ -124,6 +124,12 @@
 
   .chart-wrap{ position:relative; width:100%; height:260px; }
   .legend{ display:flex; gap:16px; font-size:12px; color:var(--ink-2); margin-top:6px; }
+  .mini-table{ width:100%; min-width:620px; border-collapse:collapse; font-size:11px; }
+  .mini-table th, .mini-table td{ padding:4px 6px; text-align:center; border:1px solid var(--line, #E2E8F0); }
+  .mini-table thead th{ background:#1A3A52; color:#fff; font-weight:600; }
+  .mini-table tbody th{ text-align:left; background:var(--surface); color:var(--ink-2); font-weight:600; white-space:nowrap; }
+  .mini-table tbody tr.row-rencana td{ color:#1E40AF; }
+  .mini-table tbody tr.row-realisasi td{ color:#15803D; font-weight:600; }
   .legend span{ display:flex; align-items:center; gap:4px; }
   .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
 
@@ -445,6 +451,7 @@
       </div>
       <div class="chart-wrap"><canvas id="fisikChart" role="img" aria-label="Grafik garis rencana vs realisasi progres fisik Target Kinerja, Januari sampai Desember, dalam persen"></canvas></div>
       <div class="legend"><span><i style="background:#2a78d6;"></i>Rencana</span><span><i style="background:#1baf7a;"></i>Realisasi</span></div>
+      <div style="overflow-x:auto; margin-top:10px;"><table class="mini-table" id="fisikMiniTable"></table></div>
       </div>
     </section>
 
@@ -1167,6 +1174,17 @@ let bayarChartInstance = null;
 let fisikChartInstance = null;
 let FISIK_AVG = { plan: [], actual: [] };
 
+// Tabel ringkas di bawah chart fisik: Rencana & Realisasi per bulan (rata-rata kontrak Target Kinerja)
+function renderFisikMiniTable(planArr, actualArr){
+  const fmt = v => (v === null || v === undefined) ? '–' : v.toFixed(1) + '%';
+  document.getElementById('fisikMiniTable').innerHTML = `
+    <thead><tr><th></th>${BULAN_SINGKAT.map(b => `<th>${b}</th>`).join('')}</tr></thead>
+    <tbody>
+      <tr class="row-rencana"><th>Rencana</th>${planArr.map(v => `<td>${fmt(v)}</td>`).join('')}</tr>
+      <tr class="row-realisasi"><th>Realisasi</th>${actualArr.map(v => `<td>${fmt(v)}</td>`).join('')}</tr>
+    </tbody>`;
+}
+
 // KPI card progres fisik (Target Kinerja): rencana = rata-rata plan Juni/Desember sesuai dropdown;
 // realisasi = rata-rata actual bulan ini. Khusus Semester 1 yang dipilih saat bulan ini sudah
 // Juli-Desember, realisasi dikunci ke Juni (akhir semester 1).
@@ -1266,23 +1284,42 @@ function renderChartsAndKpi(){
   }
 
   FISIK_AVG = { plan: planFisikAvg, actual: actualFisikAvg };
+  renderFisikMiniTable(planFisikAvg, actualFisikAvg);
   const semSel = document.getElementById('fisikSemesterSel');
   semSel.value = (new Date().getMonth() <= 5) ? '5' : '11'; // Jan-Jun = Semester 1, Jul-Des = Semester 2
   semSel.onchange = renderFisikKpi;
   renderFisikKpi();
 
   if(fisikChartInstance) fisikChartInstance.destroy();
+  // Label di titik realisasi = realisasi / rencana (%). Kalau realisasi di atas rencana label
+  // ditaruh di atas titik, kalau di bawah rencana ditaruh di bawah titik supaya tidak menimpa garis rencana.
+  const pctLabel = i => {
+    const pl = planFisikAvg[i], ac = actualFisikAvg[i];
+    return (pl && ac !== null && ac !== undefined) ? Math.round(ac / pl * 100) + '%' : '';
+  };
   fisikChartInstance = new Chart(document.getElementById('fisikChart'), {
     type:'line',
+    plugins:[ChartDataLabels],
     data:{
       labels: BULAN_SINGKAT,
       datasets:[
-        { label:'Rencana', data: planFisikAvg, borderColor:'#2a78d6', backgroundColor:'transparent', borderWidth:2, pointRadius:3, spanGaps:true },
-        { label:'Realisasi', data: actualFisikAvg, borderColor:'#1baf7a', backgroundColor:'transparent', borderWidth:2, pointRadius:3, borderDash:[5,3], spanGaps:false }
+        { label:'Rencana', data: planFisikAvg, borderColor:'#2a78d6', backgroundColor:'transparent', borderWidth:2, pointRadius:3, spanGaps:true,
+          datalabels:{ display:false } },
+        { label:'Realisasi', data: actualFisikAvg, borderColor:'#1baf7a', backgroundColor:'transparent', borderWidth:2, pointRadius:3, borderDash:[5,3], spanGaps:false,
+          datalabels:{
+            display: ctx => pctLabel(ctx.dataIndex) !== '',
+            formatter: (v, ctx) => pctLabel(ctx.dataIndex),
+            align: ctx => {
+              const pl = planFisikAvg[ctx.dataIndex], ac = actualFisikAvg[ctx.dataIndex];
+              return (ac !== null && pl !== null && ac < pl) ? 'bottom' : 'top';
+            },
+            anchor:'center', offset:6, color:'#0F7A52', font:{ weight:'700', size:11 }
+          } }
       ]
     },
     options:{
       responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{ top:14, bottom:6 } },
       plugins:{ legend:{ display:false } },
       scales:{ y:{ min:0, max:100, ticks:{ callback:v => v+'%' } } }
     }
@@ -1670,7 +1707,35 @@ function buildTargetKinerjaBody(m){
 function changeTargetKinerjaMonth(m){
   m = parseInt(m, 10);
   document.getElementById('tkTitleMonth').textContent = BULAN_LABEL[m];
+  document.getElementById('tkShotMonth').textContent = BULAN_LABEL[m];
   document.getElementById('tkBody').innerHTML = buildTargetKinerjaBody(m);
+}
+
+// Screenshot isi modal. Tabel di modal punya scroll sendiri (max-height), jadi untuk sementara
+// dibuka penuh supaya semua kontrak ikut terpotret; judul (disembunyikan di layar) ditampilkan
+// supaya hasil screenshot jelas bulan apa.
+function screenshotTargetKinerja(){
+  const m = document.getElementById('tkMonthSel').selectedOptions[0].textContent.trim();
+  const area = document.getElementById('tkCaptureArea');
+  const hooks = {
+    prepare: () => {
+      area.querySelector('#tkShotTitle').style.display = 'block';
+      area.querySelectorAll('.scroll-table').forEach(el => {
+        el.dataset.origStyle = el.getAttribute('style') || '';
+        el.style.maxHeight = 'none';
+        el.style.overflow = 'visible';
+      });
+    },
+    restore: () => {
+      area.querySelector('#tkShotTitle').style.display = 'none';
+      area.querySelectorAll('.scroll-table').forEach(el => {
+        el.setAttribute('style', el.dataset.origStyle || '');
+        delete el.dataset.origStyle;
+      });
+    }
+  };
+  screenshotElement('tkCaptureArea', 'btnScreenshotTk', 'screenshotTkIcon',
+    'Screenshot', `target-kinerja-${m}`, hooks);
 }
 
 function openTargetKinerjaOverlay(){
@@ -1679,17 +1744,18 @@ function openTargetKinerjaOverlay(){
     `<option value="${i}" ${i === nowMonth ? 'selected' : ''}>${label}</option>`).join('');
 
   openOverlay(`
-    <div class="overlay-head">
-      <div>
-        <p style="font-size:16px; font-weight:600; margin:0 0 2px;">Target Kinerja — <span id="tkTitleMonth">${BULAN_LABEL[nowMonth]}</span></p>
-        <p style="font-size:12px; color:var(--ink-2); margin:0;">${TARGET_KINERJA_CONTRACTS.length} kontrak bertanda "TARGET KINERJA" di kolom Keterangan · klik "Detail" untuk lihat rincian bulanan</p>
+    <div class="overlay-head" style="align-items:center;">
+      <p style="font-size:16px; font-weight:600; margin:0;">Target Kinerja — <span id="tkTitleMonth">${BULAN_LABEL[nowMonth]}</span></p>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <select id="tkMonthSel" onchange="changeTargetKinerjaMonth(this.value)">${monthOptions}</select>
+        <button id="btnScreenshotTk" onclick="screenshotTargetKinerja()" title="Screenshot (salin ke clipboard)" style="font-size:15px; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0;"><span id="screenshotTkIcon">📷</span></button>
+        <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
       </div>
-      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
     </div>
-    <div class="filterbar" style="margin:12px 0 0;">
-      <select id="tkMonthSel" onchange="changeTargetKinerjaMonth(this.value)">${monthOptions}</select>
+    <div id="tkCaptureArea" style="background:var(--white);">
+      <p id="tkShotTitle" style="display:none; font-size:16px; font-weight:600; margin:0 0 4px;">Target Kinerja — <span id="tkShotMonth">${BULAN_LABEL[nowMonth]}</span></p>
+      <div id="tkBody">${buildTargetKinerjaBody(nowMonth)}</div>
     </div>
-    <div id="tkBody">${buildTargetKinerjaBody(nowMonth)}</div>
   `, true);
 }
 
