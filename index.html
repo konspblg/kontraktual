@@ -422,6 +422,23 @@
         <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi progres fisik (Target Kinerja)</span>
         <button id="btnLihatTargetKinerja" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal);">Lihat Target Kinerja</button>
       </p>
+      <div class="filterbar" style="margin-bottom:12px;">
+        <select id="fisikSemesterSel">
+          <option value="5">Semester 1 (Juni)</option>
+          <option value="11">Semester 2 (Desember)</option>
+        </select>
+      </div>
+      <div class="grid-4" style="margin-bottom:14px;">
+        <div class="card-soft">
+          <p class="kpi-label">Rencana progres fisik</p>
+          <p class="kpi-value" id="kpiFisikRencana" style="font-size:19px;">–</p>
+        </div>
+        <div class="card-soft">
+          <p class="kpi-label">Realisasi sampai saat ini</p>
+          <p class="kpi-value" id="kpiFisikRealisasi" style="font-size:19px;">–</p>
+          <p style="font-size:11px; color:var(--ink-2); margin:4px 0 0;" id="kpiFisikRealisasiPct"></p>
+        </div>
+      </div>
       <div class="chart-wrap"><canvas id="fisikChart" role="img" aria-label="Grafik garis rencana vs realisasi progres fisik Target Kinerja, Januari sampai Desember, dalam persen"></canvas></div>
       <div class="legend"><span><i style="background:#2a78d6;"></i>Rencana</span><span><i style="background:#1baf7a;"></i>Realisasi</span></div>
     </section>
@@ -1143,6 +1160,30 @@ function renderBayarPaginationControls(totalRows, page, totalPages){
 /* ============== RENDER: CHARTS & KPI TAHUNAN ============== */
 let bayarChartInstance = null;
 let fisikChartInstance = null;
+let FISIK_AVG = { plan: [], actual: [] };
+
+// KPI card progres fisik (Target Kinerja): rencana = rata-rata plan Juni/Desember sesuai dropdown;
+// realisasi = rata-rata actual bulan ini. Khusus Semester 1 yang dipilih saat bulan ini sudah
+// Juli-Desember, realisasi dikunci ke Juni (akhir semester 1).
+function renderFisikKpi(){
+  const semIdx = parseInt(document.getElementById('fisikSemesterSel').value, 10);
+  const nowMonth = new Date().getMonth();
+  const realMonth = (semIdx === 5 && nowMonth >= 6) ? 5 : nowMonth;
+  const plan = FISIK_AVG.plan[semIdx];
+  const real = FISIK_AVG.actual[realMonth];
+
+  document.getElementById('kpiFisikRencana').textContent = plan !== null && plan !== undefined ? plan.toFixed(2) + '%' : '–';
+  document.getElementById('kpiFisikRealisasi').textContent = real !== null && real !== undefined ? real.toFixed(2) + '%' : '–';
+
+  const pctEl = document.getElementById('kpiFisikRealisasiPct');
+  if(real === null || real === undefined){
+    pctEl.textContent = 'belum ada data bulan ini';
+  }else if(plan){
+    pctEl.textContent = (real / plan * 100).toFixed(2) + '% dari rencana progres fisik';
+  }else{
+    pctEl.textContent = '';
+  }
+}
 
 function renderChartsAndKpi(){
   const rencanaPerBulan = [], realisasiPerBulan = [];
@@ -1218,6 +1259,10 @@ function renderChartsAndKpi(){
     planFisikAvg.push(pv.length ? pv.reduce((a,b)=>a+b,0)/pv.length : null);
     actualFisikAvg.push(av.length ? av.reduce((a,b)=>a+b,0)/av.length : null);
   }
+
+  FISIK_AVG = { plan: planFisikAvg, actual: actualFisikAvg };
+  document.getElementById('fisikSemesterSel').onchange = renderFisikKpi;
+  renderFisikKpi();
 
   if(fisikChartInstance) fisikChartInstance.destroy();
   fisikChartInstance = new Chart(document.getElementById('fisikChart'), {
@@ -1514,11 +1559,12 @@ function buildTerminBayarTable(items){
     </div>`;
 }
 
-function openTargetKinerjaOverlay(){
+// Isi modal Target Kinerja untuk satu bulan (m = 0..11): kartu Target/Realisasi + tabel kontrak.
+function buildTargetKinerjaBody(m){
   const nowMonth = new Date().getMonth();
   const rows = TARGET_KINERJA_CONTRACTS.map(k => ({
     judul: k.judul, penyedia: k.penyedia,
-    plan: k.planFisik[nowMonth], actual: k.actualFisik[nowMonth],
+    plan: k.planFisik[m], actual: k.actualFisik[m],
     planBulanan: k.planFisik, actualBulanan: k.actualFisik
   }));
 
@@ -1526,6 +1572,31 @@ function openTargetKinerjaOverlay(){
   const actualVals = rows.map(r => r.actual).filter(v => v !== null);
   const avgPlan = planVals.length ? planVals.reduce((a,b)=>a+b,0)/planVals.length : null;
   const avgActual = actualVals.length ? actualVals.reduce((a,b)=>a+b,0)/actualVals.length : null;
+
+  // Kartu Realisasi: baris kedua = realisasi / target (%)
+  let realSub, realSubColor = 'var(--ink-2)';
+  if(avgActual === null){
+    realSub = (m === nowMonth) ? 'belum ada data bulan ini' : 'belum ada data';
+  }else if(avgPlan){
+    const pct = avgActual / avgPlan * 100;
+    realSub = pct.toFixed(2) + '% dari target';
+    realSubColor = pct >= 100 ? '#15803D' : '#C2410C';
+  }else{
+    realSub = '';
+  }
+
+  const cards = `
+    <div class="grid-4" style="margin:12px 0 14px;">
+      <div class="card-soft">
+        <p class="kpi-label">Target</p>
+        <p class="kpi-value" style="font-size:19px;">${avgPlan !== null ? avgPlan.toFixed(2)+'%' : '–'}</p>
+      </div>
+      <div class="card-soft">
+        <p class="kpi-label">Realisasi</p>
+        <p class="kpi-value" style="font-size:19px;">${avgActual !== null ? avgActual.toFixed(2)+'%' : '–'}</p>
+        <p style="font-size:11px; color:${realSubColor}; margin:4px 0 0;">${realSub}</p>
+      </div>
+    </div>`;
 
   const bodyRows = rows.length ? rows.map((r, idx) => {
     const diff = (r.plan !== null && r.actual !== null) ? (r.actual - r.plan) : null;
@@ -1549,15 +1620,8 @@ function openTargetKinerjaOverlay(){
     </tr>`;
   }).join('') : `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada kontrak bertanda TARGET KINERJA di kolom Keterangan.</td></tr>`;
 
-  openOverlay(`
-    <div class="overlay-head">
-      <div>
-        <p style="font-size:16px; font-weight:600; margin:0 0 2px;">Target Kinerja — ${BULAN_LABEL[nowMonth]}</p>
-        <p style="font-size:12px; color:var(--ink-2); margin:0;">${rows.length} kontrak bertanda "TARGET KINERJA" di kolom Keterangan · klik "Detail" untuk lihat rincian bulanan</p>
-      </div>
-      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
-    </div>
-    <div class="scroll-table" style="max-height:65vh;">
+  return cards + `
+    <div class="scroll-table" style="max-height:55vh;">
       <table class="responsive-stack">
         <thead>
           <tr>
@@ -1580,7 +1644,32 @@ function openTargetKinerjaOverlay(){
           </tr>
         </tfoot>
       </table>
+    </div>`;
+}
+
+function changeTargetKinerjaMonth(m){
+  m = parseInt(m, 10);
+  document.getElementById('tkTitleMonth').textContent = BULAN_LABEL[m];
+  document.getElementById('tkBody').innerHTML = buildTargetKinerjaBody(m);
+}
+
+function openTargetKinerjaOverlay(){
+  const nowMonth = new Date().getMonth();
+  const monthOptions = BULAN_LABEL.map((label, i) =>
+    `<option value="${i}" ${i === nowMonth ? 'selected' : ''}>${label}</option>`).join('');
+
+  openOverlay(`
+    <div class="overlay-head">
+      <div>
+        <p style="font-size:16px; font-weight:600; margin:0 0 2px;">Target Kinerja — <span id="tkTitleMonth">${BULAN_LABEL[nowMonth]}</span></p>
+        <p style="font-size:12px; color:var(--ink-2); margin:0;">${TARGET_KINERJA_CONTRACTS.length} kontrak bertanda "TARGET KINERJA" di kolom Keterangan · klik "Detail" untuk lihat rincian bulanan</p>
+      </div>
+      <button class="overlay-close" onclick="closeOverlay()" aria-label="Tutup">✕</button>
     </div>
+    <div class="filterbar" style="margin:12px 0 0;">
+      <select id="tkMonthSel" onchange="changeTargetKinerjaMonth(this.value)">${monthOptions}</select>
+    </div>
+    <div id="tkBody">${buildTargetKinerjaBody(nowMonth)}</div>
   `, true);
 }
 
