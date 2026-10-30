@@ -420,8 +420,12 @@
     <section>
       <p class="section-title" style="justify-content:space-between;">
         <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi progres fisik (Target Kinerja)</span>
-        <button id="btnLihatTargetKinerja" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal);">Lihat Target Kinerja</button>
+        <span style="display:flex; align-items:center; gap:8px;">
+          <button id="btnLihatTargetKinerja" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal);">Lihat Target Kinerja</button>
+          <button id="btnScreenshotFisikChart" title="Screenshot chart (salin ke clipboard)" style="font-size:15px; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0;"><span id="screenshotFisikChartIcon">📷</span></button>
+        </span>
       </p>
+      <div id="fisikChartCaptureArea" style="background:var(--white); padding:4px;">
       <div class="filterbar" style="margin-bottom:12px;">
         <select id="fisikSemesterSel">
           <option value="5">Semester 1 (Juni)</option>
@@ -441,6 +445,7 @@
       </div>
       <div class="chart-wrap"><canvas id="fisikChart" role="img" aria-label="Grafik garis rencana vs realisasi progres fisik Target Kinerja, Januari sampai Desember, dalam persen"></canvas></div>
       <div class="legend"><span><i style="background:#2a78d6;"></i>Rencana</span><span><i style="background:#1baf7a;"></i>Realisasi</span></div>
+      </div>
     </section>
 
     <section class="grid-2">
@@ -1261,7 +1266,9 @@ function renderChartsAndKpi(){
   }
 
   FISIK_AVG = { plan: planFisikAvg, actual: actualFisikAvg };
-  document.getElementById('fisikSemesterSel').onchange = renderFisikKpi;
+  const semSel = document.getElementById('fisikSemesterSel');
+  semSel.value = (new Date().getMonth() <= 5) ? '5' : '11'; // Jan-Jun = Semester 1, Jul-Des = Semester 2
+  semSel.onchange = renderFisikKpi;
   renderFisikKpi();
 
   if(fisikChartInstance) fisikChartInstance.destroy();
@@ -1376,7 +1383,14 @@ function populateFilters(){
   document.getElementById('btnScreenshotBayarChart').addEventListener('click', () => {
     screenshotElement('bayarChartCaptureArea', 'btnScreenshotBayarChart', 'screenshotBayarChartIcon',
       'Screenshot', 'tren-rencana-realisasi-bayar-bulanan',
-      { prepare: prepareChartForScreenshot, restore: restoreChartAfterScreenshot });
+      makeChartScreenshotHooks('bayarChartCaptureArea', () => bayarChartInstance));
+  });
+
+  document.getElementById('btnScreenshotFisikChart').addEventListener('click', () => {
+    const semText = document.getElementById('fisikSemesterSel').selectedOptions[0].textContent.trim().replace(/[^a-zA-Z0-9]+/g, '-');
+    screenshotElement('fisikChartCaptureArea', 'btnScreenshotFisikChart', 'screenshotFisikChartIcon',
+      'Screenshot', `progres-fisik-target-kinerja-${semText}`,
+      makeChartScreenshotHooks('fisikChartCaptureArea', () => fisikChartInstance));
   });
 }
 
@@ -1386,26 +1400,30 @@ function populateFilters(){
    itu (beda mekanisme dari elemen HTML biasa). Makanya di sini canvas-nya benar-benar
    diperbesar & digambar ulang oleh Chart.js dulu (di luar layar, tak terlihat pengguna),
    baru di-screenshot, lalu dikembalikan ke ukuran semula. */
-function prepareChartForScreenshot(){
-  return new Promise(resolve => {
-    const container = document.getElementById('bayarChartCaptureArea');
-    container.dataset.origStyle = container.getAttribute('style') || '';
-    container.style.position = 'fixed';
-    container.style.left = '-3000px';
-    container.style.top = '0';
-    container.style.width = '1100px';
-    container.style.maxWidth = 'none';
-    container.style.zIndex = '-1';
-    if(bayarChartInstance) bayarChartInstance.resize();
-    // tunggu 2 frame supaya chart benar-benar selesai digambar ulang sebelum di-capture
-    requestAnimationFrame(() => requestAnimationFrame(resolve));
-  });
-}
-function restoreChartAfterScreenshot(){
-  const container = document.getElementById('bayarChartCaptureArea');
-  container.setAttribute('style', container.dataset.origStyle || '');
-  delete container.dataset.origStyle;
-  if(bayarChartInstance) bayarChartInstance.resize();
+function makeChartScreenshotHooks(containerId, getChart){
+  return {
+    prepare: () => new Promise(resolve => {
+      const container = document.getElementById(containerId);
+      container.dataset.origStyle = container.getAttribute('style') || '';
+      container.style.position = 'fixed';
+      container.style.left = '-3000px';
+      container.style.top = '0';
+      container.style.width = '1100px';
+      container.style.maxWidth = 'none';
+      container.style.zIndex = '-1';
+      const chart = getChart();
+      if(chart) chart.resize();
+      // tunggu 2 frame supaya chart benar-benar selesai digambar ulang sebelum di-capture
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    }),
+    restore: () => {
+      const container = document.getElementById(containerId);
+      container.setAttribute('style', container.dataset.origStyle || '');
+      delete container.dataset.origStyle;
+      const chart = getChart();
+      if(chart) chart.resize();
+    }
+  };
 }
 
 async function screenshotElement(elementId, btnId, iconId, defaultLabel, filenameFallback, hooks){
@@ -1586,15 +1604,17 @@ function buildTargetKinerjaBody(m){
   }
 
   const cards = `
-    <div class="grid-4" style="margin:12px 0 14px;">
-      <div class="card-soft">
-        <p class="kpi-label">Target</p>
-        <p class="kpi-value" style="font-size:19px;">${avgPlan !== null ? avgPlan.toFixed(2)+'%' : '–'}</p>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0 10px;">
+      <div class="card-soft" style="padding:7px 12px;">
+        <p class="kpi-label" style="margin:0 0 2px; font-size:10px;">Target</p>
+        <p class="kpi-value" style="font-size:16px; line-height:1.2;">${avgPlan !== null ? avgPlan.toFixed(2)+'%' : '–'}</p>
       </div>
-      <div class="card-soft">
-        <p class="kpi-label">Realisasi</p>
-        <p class="kpi-value" style="font-size:19px;">${avgActual !== null ? avgActual.toFixed(2)+'%' : '–'}</p>
-        <p style="font-size:11px; color:${realSubColor}; margin:4px 0 0;">${realSub}</p>
+      <div class="card-soft" style="padding:7px 12px;">
+        <p class="kpi-label" style="margin:0 0 2px; font-size:10px;">Realisasi</p>
+        <p style="margin:0; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; line-height:1.2;">
+          <span class="kpi-value" style="font-size:16px;">${avgActual !== null ? avgActual.toFixed(2)+'%' : '–'}</span>
+          <span style="font-size:11px; color:${realSubColor};">${realSub}</span>
+        </p>
       </div>
     </div>`;
 
@@ -1621,7 +1641,7 @@ function buildTargetKinerjaBody(m){
   }).join('') : `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada kontrak bertanda TARGET KINERJA di kolom Keterangan.</td></tr>`;
 
   return cards + `
-    <div class="scroll-table" style="max-height:55vh;">
+    <div class="scroll-table" style="max-height:62vh;">
       <table class="responsive-stack">
         <thead>
           <tr>
