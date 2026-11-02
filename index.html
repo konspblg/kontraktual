@@ -34,6 +34,7 @@
     --st-green-bg:#D1FAE5;   --st-green-fg:#065F46;
     --st-red-bg:#FEE2E2;     --st-red-fg:#991B1B;
     --st-violet-bg:#EDE9FE;  --st-violet-fg:#6D28D9;
+    --st-orange-bg:#FFEDD5;  --st-orange-fg:#9A3412;
     --radius:8px;
     --shadow-lg:0 20px 40px -8px rgba(15,23,42,0.25), 0 8px 16px -8px rgba(15,23,42,0.15);
   }
@@ -117,6 +118,31 @@
   .table-expand{ border:1px solid var(--line-soft); border-radius:var(--radius); overflow:visible; }
   tfoot td{ background:var(--navy); color:var(--white); font-weight:700; border-bottom:none; }
   .scroll-table tfoot td{ position:sticky; bottom:0; }
+
+  /* ===== v3: label cakupan, tooltip info, skeleton, penanda data ===== */
+  .scope-chip{ font-size:10.5px; font-weight:600; color:var(--ink-2); background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:2px 9px; white-space:nowrap; text-transform:none; letter-spacing:0; }
+  .info-tip{ display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%; font-size:10px; font-weight:700; font-style:italic; font-family:Georgia,serif; color:var(--ink-3); border:1px solid var(--ink-3); cursor:pointer; user-select:none; line-height:1; vertical-align:middle; flex:none; }
+  .info-tip:hover, .info-tip:focus-visible{ color:var(--teal-dark); border-color:var(--teal); outline:none; background:var(--teal-soft); }
+  th .info-tip{ color:#fff; border-color:rgba(255,255,255,.7); margin-left:6px; }
+  #infoPop{ position:fixed; z-index:9999; max-width:290px; background:var(--navy); color:#fff; font-size:12px; line-height:1.5; padding:11px 13px; border-radius:8px; box-shadow:0 10px 28px rgba(15,23,42,.3); display:none; }
+  #infoPop .t{ font-weight:700; color:var(--yellow); margin-bottom:4px; display:block; }
+  #infoPop b{ color:#fff; }
+  #infoPop ul{ margin:4px 0 0; padding-left:16px; }
+  #perhatianCards{ grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); } /* di HP jadi 3 baris penuh, bukan 2+1 */
+  .perhatian-card{ border-left:4px solid transparent; }
+  .perhatian-card .ph-sub{ font-size:11px; margin:4px 0 0; opacity:.85; }
+  .sk-wrap{ padding:8px 0 24px; }
+  .sk-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px; margin-bottom:18px; }
+  .sk-block{ border-radius:var(--radius); background:linear-gradient(90deg,#EEF2F6 25%,#E2E8F0 37%,#EEF2F6 63%); background-size:400% 100%; animation:skShimmer 1.4s ease infinite; }
+  .sk-card{ height:74px; } .sk-bar{ height:14px; width:180px; margin-bottom:12px; } .sk-table{ height:150px; margin-bottom:18px; }
+  .sk-msg{ text-align:center; color:var(--ink-2); font-size:13px; margin-top:6px; }
+  @keyframes skShimmer{ 0%{ background-position:100% 0; } 100%{ background-position:0 0; } }
+  .data-stamp{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--teal-soft); }
+  .data-stamp button{ background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:6px; padding:4px 9px; font-size:12px; cursor:pointer; }
+  .data-stamp button:hover{ background:rgba(255,255,255,.22); }
+  .share-toast{ position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:10000; background:var(--navy); color:#fff; border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:10px; box-shadow:0 10px 28px rgba(15,23,42,.35); font-size:13px; max-width:92vw; }
+  .share-toast button{ border-color:rgba(255,255,255,.4); }
+  .pill .pi, .status-pill .pi{ margin-right:4px; font-weight:800; }
   .status-pill{ display:inline-block; font-size:11.5px; font-weight:700; padding:5px 14px; border-radius:6px; box-shadow:0 1px 2px rgba(15,23,42,0.12); white-space:nowrap; }
   .status-pill.paid{ background:#DCFCE7; color:#15803D; }
   .status-pill.unpaid{ background:#FFEDD5; color:#C2410C; }
@@ -339,28 +365,43 @@
       <h1>Dashboard Monitoring Kontrak AI</h1>
       <p>UPT Probolinggo · data langsung dari Google Sheets</p>
     </div>
+    <div class="data-stamp" id="dataStamp" style="display:none;">
+      <span id="dataStampText"></span>
+      <button id="btnRefreshData" type="button" title="Muat ulang data dari Google Sheets" aria-label="Muat ulang data">⟳ Muat ulang</button>
+    </div>
   </div>
 </header>
 
 <div class="paper">
 
-  <div id="loadingState" class="state-msg">Memuat data dari Google Sheets...</div>
+  <div id="loadingState" class="sk-wrap" aria-live="polite">
+    <div class="sk-block sk-bar"></div>
+    <div class="sk-row"><div class="sk-block sk-card"></div><div class="sk-block sk-card"></div><div class="sk-block sk-card"></div><div class="sk-block sk-card"></div></div>
+    <div class="sk-block sk-bar"></div>
+    <div class="sk-block sk-table"></div>
+    <div class="sk-block sk-table"></div>
+    <p class="sk-msg">Memuat data dari Google Sheets...</p>
+  </div>
   <div id="errorState" class="state-msg error" style="display:none;"></div>
 
   <div id="dashboardContent" style="display:none;">
 
-    <div class="filterbar">
-      <select id="tahunSel"></select>
-    </div>
+    <section>
+      <p class="section-title"><span class="dot" style="background:var(--st-red-fg);"></span>Perlu perhatian <span class="scope-chip">Semua tahun</span><span class="info-tip" role="button" tabindex="0" data-help="perhatian" aria-label="Penjelasan">i</span></p>
+      <div id="perhatianCards" class="grid-4"></div>
+    </section>
 
     <section>
-      <p class="section-title"><span class="dot"></span>Status kontrak</p>
+      <p class="section-title" style="justify-content:space-between; flex-wrap:wrap;">
+        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Status kontrak<span class="info-tip" role="button" tabindex="0" data-help="kontrak" aria-label="Penjelasan">i</span></span>
+        <select id="tahunSel" aria-label="Pilih tahun kontrak"></select>
+      </p>
       <div id="statusCards" class="grid-4"></div>
     </section>
 
     <section>
       <div class="card">
-        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Detail kontrak</p>
+        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Detail kontrak <span class="scope-chip">Semua tahun</span></p>
         <div id="kontrakSearchWrap" style="position:relative;">
           <input type="text" id="kontrakSearchInput" placeholder="Ketik judul, no. kontrak, atau penyedia..." autocomplete="off" style="width:100%;">
           <div id="kontrakSearchResults" class="search-dropdown" style="display:none;"></div>
@@ -370,13 +411,8 @@
     </section>
 
     <section>
-      <p class="section-title"><span class="dot" style="background:var(--st-red-fg);"></span>Perlu perhatian</p>
-      <div id="perhatianCards" class="grid-4"></div>
-    </section>
-
-    <section>
       <p class="section-title" style="justify-content:space-between;">
-        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar bulan ini</span>
+        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar bulan ini <span class="scope-chip">Semua tahun</span></span>
         <button id="btnScreenshotBayarTable" title="Screenshot tabel (salin ke clipboard)" style="font-size:15px; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0;"><span id="screenshotBayarIcon">📷</span></button>
       </p>
       <div class="filterbar" style="margin-bottom:12px;">
@@ -391,7 +427,7 @@
               <th class="num" style="width:12%;">Rencana %</th>
               <th style="width:16%;">Rencana Rp</th>
               <th style="width:16%;">Realisasi Rp</th>
-              <th style="text-align:center; width:16%;">Status Bayar</th>
+              <th style="text-align:center; width:16%; white-space:nowrap;">Status Bayar<span class="info-tip" role="button" tabindex="0" data-help="bayar" aria-label="Penjelasan status bayar">i</span></th>
             </tr>
           </thead>
           <tbody id="bayarTableBody"></tbody>
@@ -403,7 +439,7 @@
 
     <section>
       <p class="section-title" style="justify-content:space-between;">
-        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar (tren bulanan)</span>
+        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi bayar (tren bulanan) <span class="scope-chip">Semua tahun</span></span>
         <button id="btnScreenshotBayarChart" title="Screenshot chart (salin ke clipboard)" style="font-size:15px; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0;"><span id="screenshotBayarChartIcon">📷</span></button>
       </p>
       <div id="bayarChartCaptureArea" style="background:var(--white); padding:4px;">
@@ -425,7 +461,7 @@
 
     <section>
       <p class="section-title" style="justify-content:space-between;">
-        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi progres fisik (Target Kinerja)</span>
+        <span style="display:flex; align-items:center; gap:8px;"><span class="dot"></span>Rencana vs realisasi progres fisik (Target Kinerja) <span class="scope-chip">Semua tahun</span></span>
         <span style="display:flex; align-items:center; gap:8px;">
           <button id="btnLihatTargetKinerja" style="font-size:12px; font-weight:600; color:var(--teal-dark); border-color:var(--teal);">Lihat Target Kinerja</button>
           <button id="btnScreenshotFisikChart" title="Screenshot chart (salin ke clipboard)" style="font-size:15px; color:var(--teal-dark); border-color:var(--teal); display:flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0;"><span id="screenshotFisikChartIcon">📷</span></button>
@@ -455,7 +491,9 @@
       </div>
     </section>
 
-    <section class="grid-2">
+    <section>
+      <p class="section-title"><span class="dot"></span>Telusuri kontrak <span class="scope-chip">Semua tahun</span></p>
+      <div class="grid-2">
       <div class="card">
         <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status PIC</p>
         <select id="picSel" style="width:100%;"><option value="">Pilih PIC...</option></select>
@@ -465,17 +503,20 @@
         <select id="penyediaSel" style="width:100%;"><option value="">Pilih penyedia...</option></select>
       </div>
       <div class="card">
-        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status masa pelaksanaan</p>
+        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status masa pelaksanaan<span class="info-tip" role="button" tabindex="0" data-help="masa" aria-label="Penjelasan">i</span></p>
         <select id="statusMasaSel" style="width:100%;"><option value="">Pilih status...</option></select>
       </div>
       <div class="card">
-        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status jampel</p>
+        <p class="section-title" style="margin-bottom:10px;"><span class="dot"></span>Status jampel<span class="info-tip" role="button" tabindex="0" data-help="jampel" aria-label="Penjelasan">i</span></p>
         <select id="statusJampelSel" style="width:100%;"><option value="">Pilih status jampel...</option></select>
+      </div>
       </div>
     </section>
 
   </div>
 </div>
+
+<div id="infoPop" role="tooltip"></div>
 
 <div id="overlay" class="overlay">
   <div class="overlay-card" id="overlayCard"></div>
@@ -501,18 +542,23 @@ const BULAN_LABEL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','A
 const BULAN_SINGKAT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
 const STATUS_COLOR = {
-  'Selesai': ['var(--st-green-bg)','var(--st-green-fg)'],
+  // [latar, teks, ikon]. Ikon dipakai supaya status tetap terbaca tanpa bergantung pada warna saja.
+  'Selesai': ['var(--st-green-bg)','var(--st-green-fg)','✓'],
   'Masa Pemeliharaan': ['var(--st-amber-bg)','var(--st-amber-fg)'],
   'Konstruksi': ['var(--st-blue-bg)','var(--st-blue-fg)'],
-  'SELESAI KONTRAK': ['var(--st-green-bg)','var(--st-green-fg)'],
-  'EXPIRED': ['var(--st-red-bg)','var(--st-red-fg)'],
+  'SELESAI KONTRAK': ['var(--st-green-bg)','var(--st-green-fg)','✓'],
+  'EXPIRED': ['var(--st-red-bg)','var(--st-red-fg)','✕'],
   'AKTIF': ['var(--st-teal-bg)','var(--st-teal-fg)'],
-  'Non-Kontraktual': ['var(--st-violet-bg)','var(--st-violet-fg)']
+  'Non-Kontraktual': ['var(--st-violet-bg)','var(--st-violet-fg)'],
+  'AMAN': ['var(--st-green-bg)','var(--st-green-fg)','✓'],
+  'HAMPIR EXPIRED': ['var(--st-amber-bg)','var(--st-amber-fg)','⚠'],
+  'PERLU AMANDEMEN': ['var(--st-orange-bg)','var(--st-orange-fg)','⚠']
 };
 function statusPill(text){
   const key = (text||'').toString().trim();
   const c = STATUS_COLOR[key] || ['var(--st-gray-bg)','var(--st-gray-fg)'];
-  return `<span class="pill" style="background:${c[0]}; color:${c[1]};">${key || '–'}</span>`;
+  const icon = c[2] ? `<span class="pi">${c[2]}</span>` : '';
+  return `<span class="pill" style="background:${c[0]}; color:${c[1]};">${icon}${key || '–'}</span>`;
 }
 
 let CONTRACTS = [];
@@ -676,6 +722,16 @@ function formatRp(num){
   if(num === null || num === undefined || isNaN(num)) return '–';
   return 'Rp' + Math.round(num).toLocaleString('id-ID');
 }
+// Teks Rupiah dari sel sheet, diseragamkan ke format Indonesia (Rp1.234.567). Kalau sel bukan angka, pakai teks aslinya.
+function rpText(row, idx){
+  const n = cellNum(row, idx);
+  return (n === null || n === undefined || isNaN(n)) ? cellFmt(row, idx) : formatRp(n);
+}
+// Nama bulan dari sheet (mis. "October 2024") diseragamkan ke bahasa Indonesia.
+const BULAN_EN_ID = {january:'Januari', february:'Februari', march:'Maret', april:'April', may:'Mei', june:'Juni', july:'Juli', august:'Agustus', september:'September', october:'Oktober', november:'November', december:'Desember'};
+function idBulan(str){
+  return (str || '').replace(/[A-Za-z]+/g, w => BULAN_EN_ID[w.toLowerCase()] || w);
+}
 function formatRpShort(num){
   if(num === null || num === undefined || isNaN(num)) return '–';
   if(Math.abs(num) >= 1e9) return 'Rp' + (num/1e9).toFixed(1).replace('.',',') + ' M';
@@ -709,16 +765,16 @@ function parseContracts(json){
       noKontrak, noPrk: cellFmt(row, IDX.noPrk),
       tahun: cellFmt(row, IDX.tahun).trim(),
       judul,
-      nilai: cellFmt(row, IDX.nilai),
+      nilai: rpText(row, IDX.nilai),
       nilaiNum: cellNum(row, IDX.nilai),
       tglAwal: cellFmt(row, IDX.tglAwal), efektif: cellFmt(row, IDX.efektif), akhirKontrak: cellFmt(row, IDX.akhirKontrak),
-      amandemenTerakhir: cellFmt(row, IDX.amandemenTerakhir), nilaiAmd: cellFmt(row, IDX.nilaiAmd), akhirAmd: cellFmt(row, IDX.akhirAmd),
+      amandemenTerakhir: cellFmt(row, IDX.amandemenTerakhir), nilaiAmd: rpText(row, IDX.nilaiAmd), akhirAmd: cellFmt(row, IDX.akhirAmd),
       status: cellFmt(row, IDX.status).trim(),
       statusMasaPelaksanaan: cellFmt(row, IDX.statusMasaPelaksanaan).trim(),
       bastI: cellFmt(row, IDX.bastI), durasiPemeliharaan: cellFmt(row, IDX.durasiPemeliharaan), akhirPemeliharaan: cellFmt(row, IDX.akhirPemeliharaan),
       bastII: cellFmt(row, IDX.bastII), bapBastII: cellFmt(row, IDX.bapBastII),
       bankGaransi: cellFmt(row, IDX.bankGaransi), akhirJampel: cellFmt(row, IDX.akhirJampel),
-      statusJampel: cellFmt(row, IDX.statusJampel).trim(), nilaiJampel: cellFmt(row, IDX.nilaiJampel),
+      statusJampel: cellFmt(row, IDX.statusJampel).trim(), nilaiJampel: rpText(row, IDX.nilaiJampel),
       penyedia: cellFmt(row, IDX.penyedia).trim(),
       keterangan: cellFmt(row, IDX.keterangan),
       pic: cellFmt(row, IDX.pic).trim(),
@@ -837,11 +893,16 @@ function renderPerhatianCards(){
     const alert = count > 0;
     const bg = alert ? 'var(--st-red-bg)' : 'var(--st-green-bg)';
     const fg = alert ? 'var(--st-red-fg)' : 'var(--st-green-fg)';
-    const onclick = alert ? `onclick="openStatusListOverlay('${statusValue}', '${title}', '${fieldKey}', true)"` : '';
+    const icon = alert ? '⚠' : '✓';
+    const sub = alert ? 'Klik untuk lihat daftar' : 'Tidak ada yang perlu ditindak';
+    const attrs = alert
+      ? `role="button" tabindex="0" onclick="openStatusListOverlay('${statusValue}', '${title}', '${fieldKey}', true)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"`
+      : '';
     return `
-    <div class="card-soft" style="background:${bg}; ${alert ? 'cursor:pointer;' : ''}" ${onclick}>
-      <p class="kpi-label" style="color:${fg};">${label}</p>
+    <div class="card-soft perhatian-card" style="background:${bg}; border-left-color:${fg}; ${alert ? 'cursor:pointer;' : ''}" ${attrs}>
+      <p class="kpi-label" style="color:${fg};"><span style="font-weight:800;">${icon}</span> ${label}</p>
       <p class="kpi-value" style="color:${fg};">${count}</p>
+      <p class="ph-sub" style="color:${fg};">${sub}</p>
     </div>`;
   };
 
@@ -911,14 +972,14 @@ function buildKontrakDetailContent(k){
     ${k.keterangan ? `<p class="overlay-group-title">Keterangan</p><p style="font-size:12.5px; margin:0;">${k.keterangan}</p>` : ''}
     ${linkButtonsHtml}
     <p class="overlay-group-title collapsible" onclick="toggleCollapse(this, 'fisik_${safeId}')">
-      <span>Progres fisik bulanan — Plan vs Actual (%)</span>
+      <span>Progres fisik bulanan — Rencana vs Realisasi (%)</span>
       <span class="collapse-arrow">▼ Lihat</span>
     </p>
     <div id="fisik_${safeId}" class="collapse-body collapse-hidden">
       ${buildMonthlyFisikTable(k.planFisik, k.actualFisik)}
     </div>
     <p class="overlay-group-title collapsible" onclick="toggleCollapse(this, 'termin_${safeId}')">
-      <span>Progres pembayaran per termin — Plan vs Realisasi</span>
+      <span>Progres pembayaran per termin — Rencana vs Realisasi</span>
       <span class="collapse-arrow">▼ Lihat</span>
     </p>
     <div id="termin_${safeId}" class="collapse-body collapse-hidden">
@@ -1118,9 +1179,9 @@ function renderBayarTablePage(){
     const sudahBayar = r.arp !== null && !isEffectivelyZero(r.arp);
     const isVip = r.arp !== null && isEffectivelyZero(r.arp);
     let pill;
-    if(sudahBayar) pill = '<span class="status-pill paid">Terbayar</span>';
-    else if(isVip) pill = '<span class="status-pill vip">VIP</span>';
-    else pill = '<span class="status-pill unpaid">Belum Terbayar</span>';
+    if(sudahBayar) pill = '<span class="status-pill paid"><span class="pi">✓</span>Terbayar</span>';
+    else if(isVip) pill = '<span class="status-pill vip"><span class="pi">★</span>VIP</span>';
+    else pill = '<span class="status-pill unpaid"><span class="pi">○</span>Belum Terbayar</span>';
     return `
     <tr>
       <td data-label="Judul kontrak">${r.judul}</td>
@@ -1202,7 +1263,8 @@ function renderFisikKpi(){
   if(real === null || real === undefined){
     pctEl.textContent = 'belum ada data bulan ini';
   }else if(plan){
-    pctEl.textContent = (real / plan * 100).toFixed(2) + '% dari rencana progres fisik';
+    const pctV = real / plan * 100;
+    pctEl.textContent = (pctV >= 100 ? '▲ ' : '▼ ') + pctV.toFixed(2) + '% dari rencana progres fisik';
   }else{
     pctEl.textContent = '';
   }
@@ -1429,6 +1491,21 @@ function populateFilters(){
       'Screenshot', `progres-fisik-target-kinerja-${semText}`,
       makeChartScreenshotHooks('fisikChartCaptureArea', () => fisikChartInstance));
   });
+
+  // Tombol "Bagikan" (Web Share) — hanya muncul di perangkat sentuh yang mendukung berbagi file gambar
+  addShareButton('btnScreenshotBayarTable', 'btnShareBayarTable', 'shareBayarTableIcon', () => {
+    const bulanText = document.getElementById('bulanSel').selectedOptions[0].textContent.trim();
+    shareElement('bayarTableCaptureArea', 'shareBayarTableIcon', `tabel-rencana-realisasi-bayar-${bulanText}`);
+  });
+  addShareButton('btnScreenshotBayarChart', 'btnShareBayarChart', 'shareBayarChartIcon', () => {
+    shareElement('bayarChartCaptureArea', 'shareBayarChartIcon', 'tren-rencana-realisasi-bayar-bulanan',
+      makeChartScreenshotHooks('bayarChartCaptureArea', () => bayarChartInstance));
+  });
+  addShareButton('btnScreenshotFisikChart', 'btnShareFisikChart', 'shareFisikChartIcon', () => {
+    const semText = document.getElementById('fisikSemesterSel').selectedOptions[0].textContent.trim().replace(/[^a-zA-Z0-9]+/g, '-');
+    shareElement('fisikChartCaptureArea', 'shareFisikChartIcon', `progres-fisik-target-kinerja-${semText}`,
+      makeChartScreenshotHooks('fisikChartCaptureArea', () => fisikChartInstance));
+  });
 }
 
 /* Chart.js menggambar isi <canvas> di resolusi sesuai lebar layar SAAT chart pertama
@@ -1461,6 +1538,86 @@ function makeChartScreenshotHooks(containerId, getChart){
       if(chart) chart.resize();
     }
   };
+}
+
+/* ============== BAGIKAN GAMBAR (Web Share) — v3 ==============
+   Clipboard gambar sering gagal di iPhone/Safari. Di perangkat sentuh yang mendukung berbagi file,
+   muncul tombol ↗ di samping 📷 yang membuka lembar bagikan bawaan HP (WhatsApp, Telegram, dll). */
+const CAN_SHARE_FILES = (function(){
+  try{
+    return !!(navigator.share && navigator.canShare
+      && navigator.canShare({ files: [new File([''], 'x.png', { type: 'image/png' })] })
+      && window.matchMedia('(pointer: coarse)').matches);
+  }catch(e){ return false; }
+})();
+
+function addShareButton(copyBtnId, shareBtnId, shareIconId, handler){
+  if(!CAN_SHARE_FILES) return;
+  const copyBtn = document.getElementById(copyBtnId);
+  if(!copyBtn || document.getElementById(shareBtnId)) return;
+  const b = document.createElement('button');
+  b.id = shareBtnId;
+  b.type = 'button';
+  b.title = 'Bagikan gambar (WhatsApp, dll)';
+  b.setAttribute('aria-label', 'Bagikan gambar');
+  b.style.cssText = copyBtn.getAttribute('style') || '';
+  b.innerHTML = `<span id="${shareIconId}">↗</span>`;
+  b.addEventListener('click', handler);
+  // bungkus supaya dua tombol tetap dianggap satu elemen oleh layout flex induknya
+  const wrap = document.createElement('span');
+  wrap.style.cssText = 'display:flex; align-items:center; gap:6px;';
+  copyBtn.parentNode.insertBefore(wrap, copyBtn);
+  wrap.appendChild(copyBtn);
+  wrap.appendChild(b);
+}
+
+function showShareToast(file, title){
+  const old = document.querySelector('.share-toast');
+  if(old) old.remove();
+  const t = document.createElement('div');
+  t.className = 'share-toast';
+  t.innerHTML = '<span>Gambar siap dibagikan</span><button type="button">Bagikan</button><button type="button" aria-label="Tutup">✕</button>';
+  const btns = t.querySelectorAll('button');
+  btns[0].addEventListener('click', async () => {
+    try{ await navigator.share({ files: [file], title }); }catch(e){ /* dibatalkan */ }
+    t.remove();
+  });
+  btns[1].addEventListener('click', () => t.remove());
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 15000);
+}
+
+async function shareElement(elementId, iconId, filenameBase, hooks){
+  const opts = hooks || {};
+  const target = document.getElementById(elementId);
+  const icon = document.getElementById(iconId);
+  let file = null;
+  icon.textContent = '⏳';
+  try{
+    if(opts.prepare) await opts.prepare();
+    let canvas;
+    try{
+      canvas = await html2canvas(target, { backgroundColor:'#FFFFFF', scale:2, useCORS:true, windowWidth:1200 });
+    }finally{
+      if(opts.restore) await opts.restore();
+    }
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    file = new File([blob], filenameBase.replace(/\s+/g, '-') + '.png', { type:'image/png' });
+    await navigator.share({ files: [file], title: filenameBase });
+    icon.textContent = '✅';
+  }catch(err){
+    if(err && err.name === 'AbortError'){
+      // pengguna menutup lembar bagikan — bukan kesalahan
+    }else if(file && err && err.name === 'NotAllowedError'){
+      // Safari membatasi share setelah proses async: minta satu ketukan lagi supaya sah
+      showShareToast(file, filenameBase);
+    }else{
+      console.warn('[Dashboard] Gagal membagikan gambar:', err);
+      alert('Gagal membagikan gambar. Coba tombol 📷 untuk menyalin.');
+    }
+  }finally{
+    setTimeout(() => { icon.textContent = '↗'; }, 2000);
+  }
 }
 
 async function screenshotElement(elementId, btnId, iconId, defaultLabel, filenameFallback, hooks){
@@ -1561,11 +1718,11 @@ function buildMonthlyFisikTable(planArr, actualArr){
           </thead>
           <tbody>
             <tr>
-              <td style="font-weight:700; color:#1E40AF; position:sticky; left:0; background:#EFF6FF; padding:8px 10px; border-right:2px solid var(--line); z-index:1;">Plan</td>
+              <td style="font-weight:700; color:#1E40AF; position:sticky; left:0; background:#EFF6FF; padding:8px 10px; border-right:2px solid var(--line); z-index:1; white-space:nowrap;">Rencana</td>
               ${planCells}
             </tr>
             <tr>
-              <td style="font-weight:700; color:#15803D; position:sticky; left:0; background:#F0FDF4; padding:8px 10px; border-right:2px solid var(--line); z-index:1;">Actual</td>
+              <td style="font-weight:700; color:#15803D; position:sticky; left:0; background:#F0FDF4; padding:8px 10px; border-right:2px solid var(--line); z-index:1; white-space:nowrap;">Realisasi</td>
               ${actualCells}
             </tr>
           </tbody>
@@ -1582,18 +1739,18 @@ function buildTerminBayarTable(items){
   const rowsHtml = items.map(it => `
     <tr>
       <td rowspan="2" style="font-weight:700; text-align:center; vertical-align:middle; border-right:2px solid var(--line);">${it.termin || '–'}</td>
-      <td style="font-weight:700; color:#1E40AF; background:#EFF6FF;">Plan</td>
+      <td style="font-weight:700; color:#1E40AF; background:#EFF6FF;">Rencana</td>
       <td class="num" style="background:#EFF6FF;">${fmtPct(it.fisikPlan)}</td>
       <td class="num" style="background:#EFF6FF;">${fmtPct(it.bayarPlan)}</td>
       <td style="background:#EFF6FF;">${formatRp(it.jumlahPlan)}</td>
-      <td style="background:#EFF6FF;">${it.bulanPlan || '–'}</td>
+      <td style="background:#EFF6FF;">${idBulan(it.bulanPlan) || '–'}</td>
     </tr>
     <tr>
       <td style="font-weight:700; color:#15803D; background:#F0FDF4;">Realisasi</td>
       <td class="num" style="background:#F0FDF4;">${fmtPct(it.fisikReal)}</td>
       <td class="num" style="background:#F0FDF4;">${fmtPct(it.bayarReal)}</td>
       <td style="background:#F0FDF4;">${formatRp(it.jumlahReal)}</td>
-      <td style="background:#F0FDF4;">${it.bulanReal || '–'}</td>
+      <td style="background:#F0FDF4;">${idBulan(it.bulanReal) || '–'}</td>
     </tr>`).join('');
 
   return `
@@ -1634,7 +1791,7 @@ function buildTargetKinerjaBody(m){
     realSub = (m === nowMonth) ? 'belum ada data bulan ini' : 'belum ada data';
   }else if(avgPlan){
     const pct = avgActual / avgPlan * 100;
-    realSub = pct.toFixed(2) + '% dari target';
+    realSub = (pct >= 100 ? '▲ ' : '▼ ') + pct.toFixed(2) + '% dari target';
     realSubColor = pct >= 100 ? '#15803D' : '#C2410C';
   }else{
     realSub = '';
@@ -1663,8 +1820,8 @@ function buildTargetKinerjaBody(m){
     <tr>
       <td data-label="Judul kontrak">${r.judul}</td>
       <td data-label="Penyedia">${r.penyedia}</td>
-      <td class="num" data-label="Plan %">${r.plan !== null ? r.plan.toFixed(2)+'%' : '–'}</td>
-      <td class="num" data-label="Actual %">${r.actual !== null ? r.actual.toFixed(2)+'%' : '–'}</td>
+      <td class="num" data-label="Rencana %">${r.plan !== null ? r.plan.toFixed(2)+'%' : '–'}</td>
+      <td class="num" data-label="Realisasi %">${r.actual !== null ? r.actual.toFixed(2)+'%' : '–'}</td>
       <td class="num" style="color:${diffColor}; font-weight:600;" data-label="Selisih">${diffText}</td>
       <td style="text-align:center;">
         <button id="btnFisikDetail${idx}" onclick="toggleFisikDetail(${idx})" style="font-size:11.5px; padding:5px 10px; white-space:nowrap;">▼ Detail</button>
@@ -1684,8 +1841,8 @@ function buildTargetKinerjaBody(m){
           <tr>
             <th>Judul kontrak</th>
             <th>Penyedia</th>
-            <th class="num">Plan %</th>
-            <th class="num">Actual %</th>
+            <th class="num">Rencana %</th>
+            <th class="num">Realisasi %</th>
             <th class="num">Selisih</th>
             <th style="text-align:center;">Detail Bulanan</th>
           </tr>
@@ -1714,10 +1871,9 @@ function changeTargetKinerjaMonth(m){
 // Screenshot isi modal. Tabel di modal punya scroll sendiri (max-height), jadi untuk sementara
 // dibuka penuh supaya semua kontrak ikut terpotret; judul (disembunyikan di layar) ditampilkan
 // supaya hasil screenshot jelas bulan apa.
-function screenshotTargetKinerja(){
-  const m = document.getElementById('tkMonthSel').selectedOptions[0].textContent.trim();
+function makeTkHooks(){
   const area = document.getElementById('tkCaptureArea');
-  const hooks = {
+  return {
     prepare: () => {
       area.querySelector('#tkShotTitle').style.display = 'block';
       area.querySelectorAll('.scroll-table').forEach(el => {
@@ -1734,8 +1890,17 @@ function screenshotTargetKinerja(){
       });
     }
   };
+}
+
+function screenshotTargetKinerja(){
+  const m = document.getElementById('tkMonthSel').selectedOptions[0].textContent.trim();
   screenshotElement('tkCaptureArea', 'btnScreenshotTk', 'screenshotTkIcon',
-    'Screenshot', `target-kinerja-${m}`, hooks);
+    'Screenshot', `target-kinerja-${m}`, makeTkHooks());
+}
+
+function shareTargetKinerja(){
+  const m = document.getElementById('tkMonthSel').selectedOptions[0].textContent.trim();
+  shareElement('tkCaptureArea', 'shareTkIcon', `target-kinerja-${m}`, makeTkHooks());
 }
 
 function openTargetKinerjaOverlay(){
@@ -1757,6 +1922,7 @@ function openTargetKinerjaOverlay(){
       <div id="tkBody">${buildTargetKinerjaBody(nowMonth)}</div>
     </div>
   `, true);
+  addShareButton('btnScreenshotTk', 'btnShareTk', 'shareTkIcon', shareTargetKinerja);
 }
 
 function toggleFisikDetail(idx){
@@ -1787,6 +1953,11 @@ async function init(){
 
     document.getElementById('loadingState').style.display = 'none';
     document.getElementById('dashboardContent').style.display = 'block';
+
+    const now = new Date();
+    document.getElementById('dataStampText').textContent =
+      'Data dimuat ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    document.getElementById('dataStamp').style.display = 'flex';
   }catch(err){
     document.getElementById('loadingState').style.display = 'none';
     const errEl = document.getElementById('errorState');
@@ -1794,6 +1965,60 @@ async function init(){
     errEl.textContent = err.message || 'Terjadi kesalahan saat memuat data.';
   }
 }
+
+/* ============== TOOLTIP INFO (ikon "i") — v3 ==============
+   Ubah teks di STATUS_HELP kalau definisi status perlu disesuaikan. */
+const STATUS_HELP = {
+  kontrak: { t:'Status Kontrak', d:'Tahap kontrak saat ini:<ul><li><b>Konstruksi</b> — pekerjaan masih berjalan</li><li><b>Masa Pemeliharaan</b> — pekerjaan selesai, masuk masa pemeliharaan</li><li><b>Selesai</b> — seluruh tahapan kontrak selesai</li><li><b>Non-Kontraktual</b> — pekerjaan tanpa kontrak</li></ul>' },
+  masa:    { t:'Status Masa Pelaksanaan', d:'Kondisi masa pelaksanaan kontrak, dihitung otomatis oleh rumus di sheet MONITORING (kolom N): <b>Aman</b>, <b>Hampir Expired</b>, atau <b>Perlu Amandemen</b>.' },
+  jampel:  { t:'Status Jampel', d:'Kondisi jaminan pelaksanaan (jampel), dari kolom AA di sheet MONITORING. <b>Expired</b> berarti masa berlaku jaminan sudah lewat; tanggal akhirnya ada di kartu detail kontrak.' },
+  bayar:   { t:'Status Bayar', d:'<ul><li><b>Terbayar</b> — ada realisasi pembayaran (lebih dari Rp1) di bulan itu</li><li><b>VIP</b> — realisasi tercatat Rp0 (ditandai khusus di sheet)</li><li><b>Belum Terbayar</b> — belum ada realisasi</li></ul>' },
+  perhatian: { t:'Perlu Perhatian', d:'Jumlah kontrak dari <b>semua tahun</b> yang Status Masa Pelaksanaannya Hampir Expired atau Perlu Amandemen, atau Status Jampelnya Expired. Merah = ada yang perlu ditindak, hijau = aman.' }
+};
+
+(function setupInfoTips(){
+  const pop = document.getElementById('infoPop');
+  let active = null, shownAt = 0;
+  function show(el){
+    const h = STATUS_HELP[el.dataset.help];
+    if(!h) return;
+    pop.innerHTML = `<span class="t">${h.t}</span>${h.d}`;
+    pop.style.display = 'block';
+    const r = el.getBoundingClientRect();
+    const pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = r.left + r.width / 2 - pw / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+    let top = r.bottom + 8;
+    if(top + ph > window.innerHeight - 8) top = r.top - ph - 8;
+    pop.style.left = left + 'px';
+    pop.style.top = Math.max(8, top) + 'px';
+    active = el;
+    shownAt = Date.now();
+  }
+  function hide(){ pop.style.display = 'none'; active = null; }
+  document.addEventListener('click', e => {
+    const t = e.target.closest ? e.target.closest('.info-tip') : null;
+    if(!t){ hide(); return; }
+    e.stopPropagation();
+    if(active === t) hide(); else show(t);
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape'){ hide(); return; }
+    if((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('info-tip')){
+      e.preventDefault();
+      e.target.click();
+    }
+  });
+  // abaikan scroll sesaat setelah dibuka (mis. layar bergeser otomatis ke elemen yang diklik)
+  window.addEventListener('scroll', () => { if(Date.now() - shownAt > 400) hide(); }, true);
+})();
+
+/* ============== PENANDA DATA & MUAT ULANG — v3 ============== */
+document.getElementById('btnRefreshData').addEventListener('click', () => {
+  // Muat ulang halaman; penanda sementara melewati layar akses supaya tidak minta password lagi.
+  try{ sessionStorage.setItem('kontrak_refresh', '1'); }catch(e){}
+  location.reload();
+});
 
 /* ============== GATE LOGIN ============== */
 const ACCESS_PASSWORD = 'PLN123'; // case-sensitive
@@ -1817,6 +2042,15 @@ document.getElementById('loginForm').addEventListener('submit', function(e){
     input.focus();
   }
 });
+
+// Setelah klik "Muat ulang": langsung muat data tanpa meminta password lagi
+try{
+  if(sessionStorage.getItem('kontrak_refresh') === '1'){
+    sessionStorage.removeItem('kontrak_refresh');
+    document.getElementById('loginOverlay').classList.add('hide');
+    init();
+  }
+}catch(e){}
 </script>
 </body>
 </html>
