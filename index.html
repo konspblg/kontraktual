@@ -565,6 +565,21 @@ let CONTRACTS = [];
 let TARGET_KINERJA_CONTRACTS = [];
 let LINK_KONTRAK_MAP = new Map(); // no_kontrak (trimmed) -> { linkKontrak, linkSebaran }
 let TERMIN_BAYAR_MAP = new Map(); // no_kontrak (trimmed) -> array baris termin
+let VIP_BAYAR_SET = new Set();   // "noKontrak|tahun|indexBulan" untuk termin yang kolom R (Bulan Realisasi)-nya ditulis "VIP"
+
+const BULAN_NAMA_IDX = {januari:0, january:0, februari:1, february:1, maret:2, march:2, april:3, mei:4, may:4, juni:5, june:5,
+  juli:6, july:6, agustus:7, august:7, september:8, oktober:9, october:9, november:10, desember:11, december:11};
+// "November 2026" / "Maret 2026" -> {m:10, y:2026}. Teks tanpa nama bulan (mis. "Tahun 2026", "2027") -> null.
+function parseBulanTahun(str){
+  const t = (str || '').toLowerCase();
+  const words = t.match(/[a-z]+/g) || [];
+  let m = -1;
+  for(const w of words){
+    if(Object.prototype.hasOwnProperty.call(BULAN_NAMA_IDX, w)){ m = BULAN_NAMA_IDX[w]; break; }
+  }
+  const yy = t.match(/\b(20\d{2})\b/);
+  return (m >= 0 && yy) ? { m, y: parseInt(yy[1], 10) } : null;
+}
 
 // Sheet ketiga: PEMBAYARAN — rincian rencana & realisasi bayar per termin.
 // Kolom C (NOMOR KONTRAK) dipakai sebagai kunci pencocokan ke MONITORING.
@@ -584,6 +599,7 @@ async function loadTerminBayarMap(){
     const json = await loadSheet(PEMBAYARAN_GID, 3);
     const rows = json.table.rows;
     const map = new Map();
+    const vipSet = new Set();
     rows.forEach(row => {
       if(!row.c) return;
       const noKontrak = cellFmt(row, PEMBAYARAN_IDX.noKontrak).trim();
@@ -602,13 +618,22 @@ async function loadTerminBayarMap(){
       };
       if(!map.has(noKontrak)) map.set(noKontrak, []);
       map.get(noKontrak).push(item);
+
+      // Tanda VIP: kolom R (Bulan Realisasi) berisi teks "VIP". Bulannya mengikuti kolom M (Bulan Plan) pada baris yang sama.
+      if(/^VIP$/i.test(item.bulanReal)){
+        const ym = parseBulanTahun(item.bulanPlan);
+        if(ym) vipSet.add(noKontrak + '|' + ym.y + '|' + ym.m);
+      }
     });
     TERMIN_BAYAR_MAP = map;
+    VIP_BAYAR_SET = vipSet;
+    console.info('[Dashboard] Termin bertanda VIP (dari PEMBAYARAN kolom R):', vipSet.size);
     console.info('[Dashboard] Jumlah kontrak dengan data termin (dari PEMBAYARAN):', map.size);
   }catch(err){
     // Sheet pelengkap — kalau gagal dimuat, dashboard utama tetap jalan tanpa tabel termin
     console.warn('[Dashboard] Gagal memuat PEMBAYARAN (progres per termin):', err);
     TERMIN_BAYAR_MAP = new Map();
+    VIP_BAYAR_SET = new Set();
   }
 }
 
@@ -1136,13 +1161,15 @@ function renderBayarTable(monthIdx){
     .map(k => ({
       judul: k.judul, penyedia: k.penyedia,
       rp: k.planBayarPct[monthIdx], rrp: k.planBayarRp[monthIdx],
-      ap: k.actualBayarPct[monthIdx], arp: k.actualBayarRp[monthIdx]
+      ap: k.actualBayarPct[monthIdx], arp: k.actualBayarRp[monthIdx],
+      // VIP juga bisa berasal dari tanda "VIP" di kolom R sheet PEMBAYARAN (bulan = bulan plan termin itu)
+      vipSheet: VIP_BAYAR_SET.has(k.noKontrak + '|' + new Date().getFullYear() + '|' + monthIdx)
     }))
     .filter(r => {
       const adaRencana = r.rrp !== null && r.rrp !== 0;
       const adaRealisasi = r.arp !== null && Math.abs(r.arp) >= 1;
       const ditandaiVip = r.arp !== null && Math.abs(r.arp) < 1; // tetap tampil walau rencana kosong
-      return adaRencana || adaRealisasi || ditandaiVip;
+      return adaRencana || adaRealisasi || ditandaiVip || r.vipSheet;
     });
 
   bayarTablePage = 1;
@@ -1177,9 +1204,10 @@ function renderBayarTablePage(){
     // Toleransi kecil (<1 rupiah) untuk jaga-jaga sisa desimal super kecil dari rumus.
     const isEffectivelyZero = v => v !== null && Math.abs(v) < 1;
     const sudahBayar = r.arp !== null && !isEffectivelyZero(r.arp);
-    const isVip = r.arp !== null && isEffectivelyZero(r.arp);
+    const isVip = r.vipSheet || (r.arp !== null && isEffectivelyZero(r.arp));
     let pill;
-    if(sudahBayar) pill = '<span class="status-pill paid"><span class="pi">✓</span>Terbayar</span>';
+    if(r.vipSheet) pill = '<span class="status-pill vip"><span class="pi">★</span>VIP</span>'; // tanda VIP dari sheet PEMBAYARAN diutamakan
+    else if(sudahBayar) pill = '<span class="status-pill paid"><span class="pi">✓</span>Terbayar</span>';
     else if(isVip) pill = '<span class="status-pill vip"><span class="pi">★</span>VIP</span>';
     else pill = '<span class="status-pill unpaid"><span class="pi">○</span>Belum Terbayar</span>';
     return `
@@ -1972,7 +2000,7 @@ const STATUS_HELP = {
   kontrak: { t:'Status Kontrak', d:'Tahap kontrak saat ini:<ul><li><b>Konstruksi</b> — pekerjaan masih berjalan</li><li><b>Masa Pemeliharaan</b> — pekerjaan selesai, masuk masa pemeliharaan</li><li><b>Selesai</b> — seluruh tahapan kontrak selesai</li><li><b>Non-Kontraktual</b> — pekerjaan tanpa kontrak</li></ul>' },
   masa:    { t:'Status Masa Pelaksanaan', d:'Kondisi masa pelaksanaan kontrak, dihitung otomatis oleh rumus di sheet MONITORING (kolom N): <b>Aman</b>, <b>Hampir Expired</b>, atau <b>Perlu Amandemen</b>.' },
   jampel:  { t:'Status Jampel', d:'Kondisi jaminan pelaksanaan (jampel), dari kolom AA di sheet MONITORING. <b>Expired</b> berarti masa berlaku jaminan sudah lewat; tanggal akhirnya ada di kartu detail kontrak.' },
-  bayar:   { t:'Status Bayar', d:'<ul><li><b>Terbayar</b> — ada realisasi pembayaran (lebih dari Rp1) di bulan itu</li><li><b>VIP</b> — realisasi tercatat Rp0 (ditandai khusus di sheet)</li><li><b>Belum Terbayar</b> — belum ada realisasi</li></ul>' },
+  bayar:   { t:'Status Bayar', d:'<ul><li><b>Terbayar</b> — ada realisasi pembayaran (lebih dari Rp1) di bulan itu</li><li><b>VIP</b> — ditandai "VIP" di kolom Bulan (Realisasi) sheet PEMBAYARAN, atau realisasi tercatat Rp0 di sheet MONITORING</li><li><b>Belum Terbayar</b> — belum ada realisasi</li></ul>' },
   perhatian: { t:'Perlu Perhatian', d:'Jumlah kontrak dari <b>semua tahun</b> yang Status Masa Pelaksanaannya Hampir Expired atau Perlu Amandemen, atau Status Jampelnya Expired. Merah = ada yang perlu ditindak, hijau = aman.' }
 };
 
