@@ -565,21 +565,6 @@ let CONTRACTS = [];
 let TARGET_KINERJA_CONTRACTS = [];
 let LINK_KONTRAK_MAP = new Map(); // no_kontrak (trimmed) -> { linkKontrak, linkSebaran }
 let TERMIN_BAYAR_MAP = new Map(); // no_kontrak (trimmed) -> array baris termin
-let VIP_BAYAR_SET = new Set();   // "noKontrak|tahun|indexBulan" untuk termin yang kolom R (Bulan Realisasi)-nya ditulis "VIP"
-
-const BULAN_NAMA_IDX = {januari:0, january:0, februari:1, february:1, maret:2, march:2, april:3, mei:4, may:4, juni:5, june:5,
-  juli:6, july:6, agustus:7, august:7, september:8, oktober:9, october:9, november:10, desember:11, december:11};
-// "November 2026" / "Maret 2026" -> {m:10, y:2026}. Teks tanpa nama bulan (mis. "Tahun 2026", "2027") -> null.
-function parseBulanTahun(str){
-  const t = (str || '').toLowerCase();
-  const words = t.match(/[a-z]+/g) || [];
-  let m = -1;
-  for(const w of words){
-    if(Object.prototype.hasOwnProperty.call(BULAN_NAMA_IDX, w)){ m = BULAN_NAMA_IDX[w]; break; }
-  }
-  const yy = t.match(/\b(20\d{2})\b/);
-  return (m >= 0 && yy) ? { m, y: parseInt(yy[1], 10) } : null;
-}
 
 // Sheet ketiga: PEMBAYARAN — rincian rencana & realisasi bayar per termin.
 // Kolom C (NOMOR KONTRAK) dipakai sebagai kunci pencocokan ke MONITORING.
@@ -599,7 +584,6 @@ async function loadTerminBayarMap(){
     const json = await loadSheet(PEMBAYARAN_GID, 3);
     const rows = json.table.rows;
     const map = new Map();
-    const vipSet = new Set();
     rows.forEach(row => {
       if(!row.c) return;
       const noKontrak = cellFmt(row, PEMBAYARAN_IDX.noKontrak).trim();
@@ -619,21 +603,13 @@ async function loadTerminBayarMap(){
       if(!map.has(noKontrak)) map.set(noKontrak, []);
       map.get(noKontrak).push(item);
 
-      // Tanda VIP: kolom R (Bulan Realisasi) berisi teks "VIP". Bulannya mengikuti kolom M (Bulan Plan) pada baris yang sama.
-      if(/^VIP$/i.test(item.bulanReal)){
-        const ym = parseBulanTahun(item.bulanPlan);
-        if(ym) vipSet.add(noKontrak + '|' + ym.y + '|' + ym.m);
-      }
     });
     TERMIN_BAYAR_MAP = map;
-    VIP_BAYAR_SET = vipSet;
-    console.info('[Dashboard] Termin bertanda VIP (dari PEMBAYARAN kolom R):', vipSet.size);
     console.info('[Dashboard] Jumlah kontrak dengan data termin (dari PEMBAYARAN):', map.size);
   }catch(err){
     // Sheet pelengkap — kalau gagal dimuat, dashboard utama tetap jalan tanpa tabel termin
     console.warn('[Dashboard] Gagal memuat PEMBAYARAN (progres per termin):', err);
     TERMIN_BAYAR_MAP = new Map();
-    VIP_BAYAR_SET = new Set();
   }
 }
 
@@ -1151,28 +1127,23 @@ function openListOverlay(title, list, extraFields){
   `);
 }
 
-/* ============== RENDER: TABEL BAYAR BULAN INI (dengan pagination) ============== */
-const BAYAR_ROWS_PER_PAGE = 10;
+/* ============== RENDER: TABEL BAYAR BULAN INI (satu halaman, semua kontrak bulan terpilih) ============== */
 let bayarTableRows = [];
-let bayarTablePage = 1;
 
 function renderBayarTable(monthIdx){
   bayarTableRows = CONTRACTS
     .map(k => ({
       judul: k.judul, penyedia: k.penyedia,
       rp: k.planBayarPct[monthIdx], rrp: k.planBayarRp[monthIdx],
-      ap: k.actualBayarPct[monthIdx], arp: k.actualBayarRp[monthIdx],
-      // VIP juga bisa berasal dari tanda "VIP" di kolom R sheet PEMBAYARAN (bulan = bulan plan termin itu)
-      vipSheet: VIP_BAYAR_SET.has(k.noKontrak + '|' + new Date().getFullYear() + '|' + monthIdx)
+      ap: k.actualBayarPct[monthIdx], arp: k.actualBayarRp[monthIdx]
     }))
     .filter(r => {
       const adaRencana = r.rrp !== null && r.rrp !== 0;
       const adaRealisasi = r.arp !== null && Math.abs(r.arp) >= 1;
       const ditandaiVip = r.arp !== null && Math.abs(r.arp) < 1; // tetap tampil walau rencana kosong
-      return adaRencana || adaRealisasi || ditandaiVip || r.vipSheet;
+      return adaRencana || adaRealisasi || ditandaiVip;
     });
 
-  bayarTablePage = 1;
   renderBayarTablePage();
 }
 
@@ -1180,21 +1151,16 @@ function renderBayarTablePage(){
   const tbody = document.getElementById('bayarTableBody');
   const tfoot = document.getElementById('bayarTableFoot');
   const rows = bayarTableRows;
-  const totalPages = Math.max(1, Math.ceil(rows.length / BAYAR_ROWS_PER_PAGE));
-  if(bayarTablePage > totalPages) bayarTablePage = totalPages;
-  if(bayarTablePage < 1) bayarTablePage = 1;
 
   if(!rows.length){
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:20px;">Tidak ada data rencana/realisasi bayar untuk bulan ini.</td></tr>`;
     tfoot.innerHTML = '';
-    renderBayarPaginationControls(0, 1, 1);
+    renderBayarSummary(0);
     return;
   }
 
-  const start = (bayarTablePage - 1) * BAYAR_ROWS_PER_PAGE;
-  const pageRows = rows.slice(start, start + BAYAR_ROWS_PER_PAGE);
-
-  tbody.innerHTML = pageRows.map(r => {
+  // Semua kontrak untuk bulan terpilih ditampilkan sekaligus (jumlah baris menyesuaikan bulan), tanpa pagination.
+  tbody.innerHTML = rows.map(r => {
     // Formula sumbernya: =IF(PROGRESS_BAYAR!$C..=$C..,PROGRESS_BAYAR!EV..,"")
     // Kalau kondisi TIDAK cocok → hasilnya string kosong "" → kebaca null (dash "-").
     // Kalau kondisi COCOK tapi nilainya kebetulan 0 → angka 0 ASLI → format Keuangan
@@ -1204,10 +1170,9 @@ function renderBayarTablePage(){
     // Toleransi kecil (<1 rupiah) untuk jaga-jaga sisa desimal super kecil dari rumus.
     const isEffectivelyZero = v => v !== null && Math.abs(v) < 1;
     const sudahBayar = r.arp !== null && !isEffectivelyZero(r.arp);
-    const isVip = r.vipSheet || (r.arp !== null && isEffectivelyZero(r.arp));
+    const isVip = r.arp !== null && isEffectivelyZero(r.arp);
     let pill;
-    if(r.vipSheet) pill = '<span class="status-pill vip"><span class="pi">★</span>VIP</span>'; // tanda VIP dari sheet PEMBAYARAN diutamakan
-    else if(sudahBayar) pill = '<span class="status-pill paid"><span class="pi">✓</span>Terbayar</span>';
+    if(sudahBayar) pill = '<span class="status-pill paid"><span class="pi">✓</span>Terbayar</span>';
     else if(isVip) pill = '<span class="status-pill vip"><span class="pi">★</span>VIP</span>';
     else pill = '<span class="status-pill unpaid"><span class="pi">○</span>Belum Terbayar</span>';
     return `
@@ -1225,7 +1190,7 @@ function renderBayarTablePage(){
   const totalRealisasi = rows.reduce((sum, r) => sum + (r.arp || 0), 0);
   tfoot.innerHTML = `
     <tr>
-      <td colspan="3" style="text-align:right;">TOTAL RENCANA &amp; REALISASI BAYAR (semua halaman)</td>
+      <td colspan="3" style="text-align:right;">TOTAL RENCANA &amp; REALISASI BAYAR</td>
       <td>
         <div style="font-size:10px; font-weight:400; opacity:.75; margin-bottom:2px;">Rencana</div>
         ${formatRp(totalRencana)}
@@ -1237,25 +1202,13 @@ function renderBayarTablePage(){
       <td></td>
     </tr>`;
 
-  renderBayarPaginationControls(rows.length, bayarTablePage, totalPages);
+  renderBayarSummary(rows.length);
 }
 
-function renderBayarPaginationControls(totalRows, page, totalPages){
+function renderBayarSummary(totalRows){
   const el = document.getElementById('bayarTablePagination');
   if(!totalRows){ el.innerHTML = ''; return; }
-  const startRow = (page - 1) * BAYAR_ROWS_PER_PAGE + 1;
-  const endRow = Math.min(page * BAYAR_ROWS_PER_PAGE, totalRows);
-  el.innerHTML = `
-    <span style="font-size:12px; color:var(--ink-2);">Menampilkan ${startRow}–${endRow} dari ${totalRows} kontrak</span>
-    <div style="display:flex; align-items:center; gap:8px;">
-      <button id="bayarPrevBtn" ${page <= 1 ? 'disabled' : ''} style="padding:6px 10px;">‹ Sebelumnya</button>
-      <span style="font-size:12px; color:var(--ink-2);">Halaman ${page} dari ${totalPages}</span>
-      <button id="bayarNextBtn" ${page >= totalPages ? 'disabled' : ''} style="padding:6px 10px;">Berikutnya ›</button>
-    </div>`;
-  const prevBtn = document.getElementById('bayarPrevBtn');
-  const nextBtn = document.getElementById('bayarNextBtn');
-  if(prevBtn) prevBtn.addEventListener('click', () => { bayarTablePage--; renderBayarTablePage(); });
-  if(nextBtn) nextBtn.addEventListener('click', () => { bayarTablePage++; renderBayarTablePage(); });
+  el.innerHTML = `<span style="font-size:12px; color:var(--ink-2);">Menampilkan semua ${totalRows} kontrak</span>`;
 }
 
 /* ============== RENDER: CHARTS & KPI TAHUNAN ============== */
@@ -2000,7 +1953,7 @@ const STATUS_HELP = {
   kontrak: { t:'Status Kontrak', d:'Tahap kontrak saat ini:<ul><li><b>Konstruksi</b> — pekerjaan masih berjalan</li><li><b>Masa Pemeliharaan</b> — pekerjaan selesai, masuk masa pemeliharaan</li><li><b>Selesai</b> — seluruh tahapan kontrak selesai</li><li><b>Non-Kontraktual</b> — pekerjaan tanpa kontrak</li></ul>' },
   masa:    { t:'Status Masa Pelaksanaan', d:'Kondisi masa pelaksanaan kontrak, dihitung otomatis oleh rumus di sheet MONITORING (kolom N): <b>Aman</b>, <b>Hampir Expired</b>, atau <b>Perlu Amandemen</b>.' },
   jampel:  { t:'Status Jampel', d:'Kondisi jaminan pelaksanaan (jampel), dari kolom AA di sheet MONITORING. <b>Expired</b> berarti masa berlaku jaminan sudah lewat; tanggal akhirnya ada di kartu detail kontrak.' },
-  bayar:   { t:'Status Bayar', d:'<ul><li><b>Terbayar</b> — ada realisasi pembayaran (lebih dari Rp1) di bulan itu</li><li><b>VIP</b> — ditandai "VIP" di kolom Bulan (Realisasi) sheet PEMBAYARAN, atau realisasi tercatat Rp0 di sheet MONITORING</li><li><b>Belum Terbayar</b> — belum ada realisasi</li></ul>' },
+  bayar:   { t:'Status Bayar', d:'<ul><li><b>Terbayar</b> — ada realisasi pembayaran (lebih dari Rp1) di bulan itu</li><li><b>VIP</b> — realisasi tercatat Rp0 (ditandai khusus di sheet)</li><li><b>Belum Terbayar</b> — belum ada realisasi</li></ul>' },
   perhatian: { t:'Perlu Perhatian', d:'Jumlah kontrak dari <b>semua tahun</b> yang Status Masa Pelaksanaannya Hampir Expired atau Perlu Amandemen, atau Status Jampelnya Expired. Merah = ada yang perlu ditindak, hijau = aman.' }
 };
 
